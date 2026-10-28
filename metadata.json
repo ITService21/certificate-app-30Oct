@@ -1,0 +1,6 @@
+{
+  "name": "CertVerify Maritime STCW Portal",
+  "description": "Continental Training Center S.A. (CTC) & United Alliance Group official maritime STCW certificate verification portal and administration console.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
