@@ -56,7 +56,7 @@ export const Header: React.FC = () => {
                 <span>Continental Training Center Admin</span>
                 <span>/</span>
                 <span className="text-[#0B1F4B] dark:text-sky-400 font-bold capitalize">
-                  {currentView.replace('admin_', '').replace('_', ' ')}
+                  {currentView === 'admin_add_cert' ? 'generate certificate' : currentView.replace('admin_', '').replace('_', ' ')}
                 </span>
               </div>
             )}

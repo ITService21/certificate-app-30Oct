@@ -99,3 +99,26 @@ CREATE TABLE IF NOT EXISTS portal_settings (
   config_value TEXT NOT NULL,
   updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Reference data for the certificate generator (seeded by `npm run db:init`, also on production).
+-- A template fills in everything that is the same for every trainee taking that course.
+CREATE TABLE IF NOT EXISTS course_templates (
+  code                 VARCHAR(20)  NOT NULL PRIMARY KEY,
+  title                VARCHAR(255) NOT NULL,
+  stcw_regulation      VARCHAR(400) NOT NULL,
+  approval_resolution  VARCHAR(160) NOT NULL,
+  approval_authority   VARCHAR(255) NOT NULL,
+  approval_date        DATE NOT NULL,
+  approval_valid_until DATE NOT NULL,
+  validity_years       TINYINT UNSIGNED NOT NULL DEFAULT 5,
+  sort_order           SMALLINT NOT NULL DEFAULT 100,
+  active               TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Single row (id = 1): values that are identical on every certificate unless the issuer overrides them.
+CREATE TABLE IF NOT EXISTS certificate_defaults (
+  id              TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  signatory_name  VARCHAR(120) NOT NULL,
+  signatory_title VARCHAR(160) NOT NULL,
+  training_mode   ENUM('Presential','Online','Blended') NOT NULL DEFAULT 'Presential'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

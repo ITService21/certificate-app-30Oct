@@ -6,7 +6,6 @@ import { ToastContainer } from './components/common/ToastContainer';
 
 // Public screens
 import { VerifyHome } from './components/public/VerifyHome';
-import { SearchResults } from './components/public/SearchResults';
 import { CertificateDetails } from './components/public/CertificateDetails';
 import { InvalidCertificate } from './components/public/InvalidCertificate';
 
@@ -15,12 +14,12 @@ import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { DashboardView } from './components/admin/DashboardView';
 import { CertificatesListView } from './components/admin/CertificatesListView';
-import { AddCertificateView } from './components/admin/AddCertificateView';
+import { GenerateCertificateView } from './components/admin/GenerateCertificateView';
 import { UsersRolesView } from './components/admin/UsersRolesView';
 import { SettingsView } from './components/admin/SettingsView';
 
 const MainContent: React.FC = () => {
-  const { currentView, openCertificateById, currentUser, loading } = useApp();
+  const { currentView, openCertificateById, currentUser, loading, sessionLoading } = useApp();
 
   // Direct verification links: /certificate/32625474824291 (printed in the QR) and the legacy ?verify=32625474824291
   useEffect(() => {
@@ -34,6 +33,9 @@ const MainContent: React.FC = () => {
   // Protect admin views
   const isAdminView = currentView.startsWith('admin_') && currentView !== 'admin_login';
   if (isAdminView && !currentUser) {
+    if (sessionLoading) {
+      return <div className="flex-1 flex items-center justify-center text-sm text-slate-500" role="status">Restoring your session…</div>;
+    }
     return <AdminLogin />;
   }
 
@@ -43,7 +45,7 @@ const MainContent: React.FC = () => {
       <AdminLayout>
         {currentView === 'admin_dashboard' && <DashboardView />}
         {currentView === 'admin_certificates' && <CertificatesListView />}
-        {currentView === 'admin_add_cert' && <AddCertificateView />}
+        {currentView === 'admin_add_cert' && <GenerateCertificateView />}
         {currentView === 'admin_users' && <UsersRolesView />}
         {currentView === 'admin_settings' && <SettingsView />}
       </AdminLayout>
@@ -60,7 +62,6 @@ const MainContent: React.FC = () => {
         <div className="text-center text-xs font-semibold text-[#0A7AC1] py-2" role="status">Verifying…</div>
       )}
       {currentView === 'verify_home' && <VerifyHome />}
-      {currentView === 'search_results' && <SearchResults />}
       {currentView === 'invalid_cert' && <InvalidCertificate />}
       {currentView === 'admin_login' && <AdminLogin />}
     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { certificateUrl } from '../../api';
+import { certificateUrl, openPdf } from '../../api';
 import { Certificate, CertificateStatus } from '../../types';
 import {
   Search,
@@ -228,7 +228,7 @@ export const CertificatesListView: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-white bg-[#0B1F4B] hover:bg-[#0A7AC1] transition-colors shadow-xs cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Add Certificate</span>
+            <span>Generate Certificate</span>
           </button>
         </div>
       </div>
@@ -349,8 +349,16 @@ export const CertificatesListView: React.FC = () => {
                       </button>
 
                       <button
+                        onClick={() => openPdf(`/api/verify/${cert.uniqueNumber}/document`).catch((e) => showToast(e.message, 'error'))}
+                        title="Open Certificate PDF"
+                        className="p-1 text-slate-400 hover:text-[#0A7AC1] dark:hover:text-white cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
                         onClick={() => handleDownload(cert)}
-                        title="Download Certificate File"
+                        title="Download Certificate PDF"
                         className="p-1 text-slate-400 hover:text-[#0A7AC1] dark:hover:text-white cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />

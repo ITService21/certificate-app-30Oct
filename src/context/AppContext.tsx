@@ -19,9 +19,29 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
   maskPassportByDefault: true,
 };
 
+const VIEW_PATHS: Partial<Record<string, string>> = {
+  verify_home: '/',
+  invalid_cert: '/',
+  admin_login: '/admin/login',
+  admin_dashboard: '/admin',
+  admin_certificates: '/admin/certificates',
+  admin_add_cert: '/admin/add',
+  admin_users: '/admin/users',
+  admin_settings: '/admin/settings',
+};
+
+function viewFromPath(): AppView {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (/^\/certificate\/[^/]/.test(path)) return 'cert_details';
+  if (path === '/admin' || path.startsWith('/admin/')) {
+    const hit = Object.entries(VIEW_PATHS).find(([view, p]) => p === path && view.startsWith('admin_'));
+    return (hit?.[0] as AppView) ?? 'admin_dashboard';
+  }
+  return 'verify_home';
+}
+
 export type AppView =
   | 'verify_home'
-  | 'search_results'
   | 'cert_details'
   | 'invalid_cert'
   | 'admin_login'
@@ -49,17 +69,17 @@ interface AppContextType {
   setCurrentView: (view: AppView) => void;
   /** True while a verification request is in flight. */
   loading: boolean;
+  /** True while a saved admin session is being restored on page load. */
+  sessionLoading: boolean;
   certificates: Certificate[];
   scanLogs: ScanLog[];
   selectedCert: Certificate | null;
   setSelectedCert: (cert: Certificate | null) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-  nameSearchResults: Certificate[];
 
   // Verification actions
   verifyByNumber: (num: string) => Promise<void>;
-  verifyByName: (name: string) => Promise<void>;
   openCertificateById: (uniqueNumber: string, method?: ScanMethod) => Promise<void>;
 
   // Admin actions
@@ -124,20 +144,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [scanLogs, setScanLogs] = useState<ScanLog[]>([]);
 
-  const [currentView, setCurrentView] = useState<AppView>(() =>
-    /^\/certificate\/[^/]/.test(window.location.pathname) ? 'cert_details' : 'verify_home',
-  );
+  const [currentView, setCurrentView] = useState<AppView>(viewFromPath);
 
-  // Leaving the QR landing page: drop /certificate/<n> from the address bar so a reload doesn't re-open it.
+  // Keep the address bar in step with the view so a refresh lands on the same screen (/admin/certificates, …).
+  // The QR page (/certificate/<n>) keeps its own URL while shown and is dropped when the user leaves it.
   useEffect(() => {
-    if (currentView !== 'cert_details' && /^\/certificate\//.test(window.location.pathname)) {
-      window.history.replaceState(null, '', '/');
+    if (currentView === 'cert_details') return;
+    const target = VIEW_PATHS[currentView] ?? '/';
+    if (window.location.pathname !== target || window.location.search) {
+      window.history.replaceState(null, '', target);
     }
   }, [currentView]);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [nameSearchResults, setNameSearchResults] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(() => !!getToken());
 
   const loadAdminData = useCallback(async () => {
     const [certs, usrs, logs] = await Promise.all([
@@ -184,7 +205,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setCurrentUser(u);
           await loadAdminData();
         })
-        .catch(() => clearSession());
+        .catch(() => clearSession())
+        .finally(() => setSessionLoading(false));
     }
   }, [loadAdminData, clearSession]);
 
@@ -234,24 +256,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleaned = num.replace(/\s+/g, '').trim();
     setSearchQuery(cleaned);
     await openCertificateById(cleaned, 'number_lookup');
-  };
-
-  const verifyByName = async (name: string) => {
-    const q = name.trim();
-    setSearchQuery(name);
-    if (q.length < 2) {
-      showToast('Enter at least 2 characters to search', 'info');
-      return;
-    }
-    setLoading(true);
-    try {
-      setNameSearchResults(await api.get<Certificate[]>(`/search?q=${encodeURIComponent(q)}`));
-      setCurrentView('search_results');
-    } catch (e) {
-      showToast(errMsg(e), 'error');
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Admin CRUD
@@ -375,15 +379,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentView,
         setCurrentView,
         loading,
+        sessionLoading,
         certificates,
         scanLogs,
         selectedCert,
         setSelectedCert,
         searchQuery,
         setSearchQuery,
-        nameSearchResults,
         verifyByNumber,
-        verifyByName,
         openCertificateById,
         addCertificate,
         updateCertificate,

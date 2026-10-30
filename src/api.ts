@@ -79,3 +79,25 @@ export async function downloadDocument(url: string, fileName: string): Promise<v
   document.body.removeChild(a);
   URL.revokeObjectURL(href);
 }
+
+/** Opens a PDF (GET a stored document, or POST a body to render one) in a new tab, sending the admin token. */
+export async function openPdf(url: string, body?: unknown): Promise<void> {
+  const tab = window.open('', '_blank'); // opened synchronously so popup blockers allow it
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const res = await fetch(url, { method: body !== undefined ? 'POST' : 'GET', headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    if (!res.ok) {
+      let message = 'The PDF could not be opened';
+      try { message = (await res.json()).error || message; } catch { /* not JSON */ }
+      throw new ApiError(res.status, message);
+    }
+    const href = URL.createObjectURL(new Blob([await res.blob()], { type: 'application/pdf' }));
+    if (tab) tab.location.href = href; else window.location.href = href;
+    setTimeout(() => URL.revokeObjectURL(href), 5 * 60_000);
+  } catch (e) {
+    tab?.close();
+    throw e;
+  }
+}

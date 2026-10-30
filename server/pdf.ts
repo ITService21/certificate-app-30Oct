@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import type { Certificate } from '../src/types';
+import { pool } from './db';
 
 const BLUE_RULE = '#0A8FCB';
 const BRAND_BLUE = '#0000FF';
@@ -37,6 +38,9 @@ type Seg = { text: string; bold?: boolean; underline?: boolean; color?: string; 
 /** Renders the official certificate as an A4-landscape PDF. The QR encodes `${baseUrl}/certificate/<uniqueNumber>`. */
 export async function generateCertificatePdf(cert: Certificate, baseUrl: string): Promise<Buffer> {
   const verifyUrl = `${baseUrl}/certificate/${cert.uniqueNumber}`;
+  // Admin -> Settings -> "Security Watermark" switches the background logo on/off (default: on).
+  const [wm] = await pool.query<any[]>("SELECT config_value FROM portal_settings WHERE config_key = 'showWatermark'");
+  const showWatermark = !wm.length || JSON.parse(wm[0].config_value) !== false;
   const qr = await QRCode.toBuffer(verifyUrl, { width: 400, margin: 1, errorCorrectionLevel: 'M' });
 
   const doc = new PDFDocument({
@@ -54,6 +58,11 @@ export async function generateCertificatePdf(cert: Certificate, baseUrl: string)
   const LEFT = 50;
   const RIGHT = W - 50;
 
+  // watermark: large, very faint company logo behind everything else
+  if (showWatermark) {
+    doc.save().opacity(0.11).image(assets.ctc, CX - 150, 190, { width: 300, height: 304 }).restore();
+  }
+
   // certificate id, top right
   doc.font('Helvetica-Bold').fontSize(8).fillColor(BLACK).text(cert.certificateId, RIGHT - 300, 26, { width: 300, align: 'right' });
 
@@ -63,7 +72,7 @@ export async function generateCertificatePdf(cert: Certificate, baseUrl: string)
   // header: blue rules, logos, company block
   doc.lineWidth(3.2).strokeColor(BLUE_RULE);
   doc.moveTo(80, 66).lineTo(W - 80, 66).stroke();
-  doc.moveTo(82, 180).lineTo(W - 82, 180).stroke();
+  doc.moveTo(82, 163).lineTo(W - 82, 163).stroke();
   doc.image(assets.ctc, 118, 74, { width: 78, height: 79 });
   doc.image(assets.uag, W - 118 - 82, 70, { width: 82, height: 76 });
 
@@ -72,7 +81,7 @@ export async function generateCertificatePdf(cert: Certificate, baseUrl: string)
 
   line('CONTINENTAL TRAINING CENTER S.A.', 120, 'Helvetica-BoldOblique', 14, BRAND_BLUE);
   line('UNITED ALLIANCE GROUP LTD', 142, 'Helvetica-BoldOblique', 10.5, BRAND_BLUE);
-  line(ADDRESS, 166, 'Helvetica-Bold', 6.6);
+  line(ADDRESS, 172, 'Helvetica-Bold', 6.6);
 
   /** One centred line made of differently styled pieces (bold / underlined / links). */
   const rich = (segs: Seg[], y: number, size = 9) => {
@@ -91,7 +100,7 @@ export async function generateCertificatePdf(cert: Certificate, baseUrl: string)
       { text: EMAIL, bold: true, underline: true, color: '#1155CC', link: `mailto:${EMAIL}` },
       { text: ' , Web Page: ' + WEBSITE, bold: true },
     ],
-    186.5, 6.6,
+    186, 6.6,
   );
 
   line('Certify that:', 204, 'Helvetica', 9);
@@ -102,7 +111,7 @@ export async function generateCertificatePdf(cert: Certificate, baseUrl: string)
   const afterTitle = doc.y + 8;
   line('The course fulfills minimum requirements of', afterTitle, 'Helvetica', 8.5);
   doc.font('Helvetica-Bold').fontSize(8.5).fillColor(BLACK)
-    .text(cert.stcwRegulation, CX - 270, doc.y + 4, { width: 540, align: 'center', lineGap: 4 });
+    .text(cert.stcwRegulation, CX - 255, doc.y + 4, { width: 510, align: 'center', lineGap: 4 });
 
   const resolutionNo = cert.approvalResolution.replace(/^\s*Resolution\s+No\.?\s*/i, '');
   const authority = (cert.approvalAuthority.split(',')[0] || '').replace(/^\s*Government of\s+/i, '').toUpperCase();

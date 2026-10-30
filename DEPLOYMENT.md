@@ -45,6 +45,8 @@ Schema file: [`server/schema.sql`](server/schema.sql) (idempotent, applied by `n
 | `certificates` | One row per certificate (all printed fields, incl. `nationality`) | unique `unique_number` (14 digits) and `certificate_id`; status `valid/expiring/revoked/draft`; revocation audit columns; `scan_count`, `last_scanned_at` |
 | `certificate_documents` | **The PDF/PNG/JPEG file itself** (`LONGBLOB`) | 1 per certificate (FK, `ON DELETE CASCADE`); `file_name`, `mime_type`, `size_bytes`, `sha256`, `is_generated` (server-made vs uploaded) |
 | `scan_logs` | Every public verification | real IP, device (from User-Agent), method (`qr_scan`/`number_lookup`), suspicious flag for unknown numbers |
+| `course_templates` | Seeded courses for the generator (code, title, regulation text, approval, validity) | upserted by `db:init` |
+| `certificate_defaults` | One row: default signatory + course mode | inserted by `db:init` if missing |
 | `portal_settings` | Branding/config key → JSON value | edited from Admin → Settings |
 
 PDFs are in their own table so list queries never load file bytes.
@@ -62,7 +64,7 @@ PDFs are in their own table so list queries never load file bytes.
 
 - Passwords are bcrypt-hashed; the old "any password works" login is gone.
 - Login is rate-limited (10 attempts / 15 min / IP); public lookups 120 / min / IP.
-- **Drafts are private** (hidden from public verify, search and document download).
+- **Drafts are private** (hidden from public verify and document download).
 - Uploads: PDF / PNG / JPEG only, max 10 MB, checked by **file signature**, not just the extension.
 - Deactivating a user invalidates their existing token immediately.
 - The server **refuses to start in production without a 32+ char `JWT_SECRET`**.
@@ -98,6 +100,14 @@ To scan QR codes from a phone in dev, set `PUBLIC_URL=http://<your-LAN-IP>:3000`
 
 > **Port note:** the API defaults to **4100**. If something else uses it, change `PORT` in `.env` and `API_URL` for Vite (`API_URL=http://localhost:PORT npm run dev`).
 
+### The certificate generator (Admin → Generate Certificate)
+- There is no "add certificate" form with dozens of fields. The issuer picks a **course** and fills in only what is specific to the trainee: title, full name, passport, nationality, training dates, mode, location and issue date.
+- Everything else comes from **seeded reference data**: company header, address, logos, course wording (STCW/MLC regulation text), approval resolution and dates, validity (5 years), signatory (Claudia Galeano, CTC General Manager) and "REV. 2/2024".
+- The **Certificate ID** (`UAG-TC-<yy>-<COURSE>-<nnnnn>`, continuing from the highest existing number for that course and year), the **14-digit number** and the **expiry date** are generated automatically. They can be overridden under *Advanced*.
+- *Preview Certificate PDF* shows the result before anything is saved; *Generate Certificate* saves it and offers Open / Download PDF, the QR and the verification link.
+- Reference data lives in `server/reference-data.ts` and is written to MySQL by `npm run db:init` (tables `course_templates`, `certificate_defaults`) – **also on production**, because `db:init` is part of every deploy. Course templates are upserted (edit the file, run `db:init`, done); `certificate_defaults` is only inserted when missing, so a later edit in the database (for example a new signatory) is kept.
+- To add a course: add a line to `COURSE_TEMPLATES` in `server/reference-data.ts`, then `npm run db:init`.
+
 ### The QR link and the public page
 - Every certificate PDF carries a QR that encodes `${PUBLIC_URL}/certificate/<14-digit number>` (e.g. `https://browser.seafarersctc.app/certificate/32625474824291`).
 - That page shows only: Number Certificate, Participant, Identity (passport), Nationality, Issued Date, Due Date and a **View Certificate** button (opens the stored PDF). Revoked/expired certificates also get a red notice.
@@ -107,8 +117,8 @@ To scan QR codes from a phone in dev, set `PUBLIC_URL=http://<your-LAN-IP>:3000`
 ### Tests
 ```bash
 # API on :4100 started with:  LOGIN_RATE_MAX=1000 ALLOW_DEMO_RESET=true npm run server
-npm run test:api     # 105 checks: auth, roles, CRUD, PDF storage, drafts, bulk, users, settings
-npm run test:ui      # 36 checks in real Chrome (puppeteer-core): public flows, admin flows, downloads
+npm run test:api     # 111 checks: auth, roles, CRUD, exact-match lookup, PDF storage/preview, drafts, bulk, users, settings
+npm run test:ui      # 49 checks in real Chrome (puppeteer-core): public flows, admin flows, refresh persistence, PDFs
 ```
 ⚠️ `test:api` ends by resetting the database to the demo dataset – never point it at production.
 
@@ -307,12 +317,12 @@ Rollback: `git checkout <previous-tag>`, `npm ci && npm run build && sudo system
 ## 8. API reference (summary)
 
 Public pages (SPA)
+- `/admin`, `/admin/certificates`, `/admin/add`, `/admin/users`, `/admin/settings` – admin screens; a refresh stays on the same screen (all served by the SPA fallback, so Nginx needs nothing extra).
 - `/certificate/<number>` – the page a QR scan opens (minimal "QR Validity Query" card + View Certificate). The old `/?verify=<number>` links still work.
 
 Public API
-- `GET  /api/verify/:id?method=qr_scan|number_lookup` – by 14-digit number or certificate ID (logs a scan)
+- `GET  /api/verify/:id?method=qr_scan|number_lookup` – **exact** match on the full 14-digit number or full certificate ID (no partial/name search; logs a scan)
 - `GET  /api/verify/:uniqueNumber/document[?download=1]` – stored PDF/image
-- `GET  /api/search?q=` – name or course (min 2 chars, max 50 results)
 - `GET  /api/config` – portal settings + `publicUrl`
 - `GET  /api/health`
 
@@ -320,9 +330,11 @@ Auth
 - `POST /api/auth/login` · `GET /api/admin/me` · `POST /api/admin/me/password`
 
 Admin (Bearer token)
-- `GET/POST /api/admin/certificates` (POST = multipart: `data` JSON + optional `file`; no file → PDF auto-generated with QR)
+- `GET/POST /api/admin/certificates` (POST = multipart: `data` JSON + optional `file`; send `courseCode` + trainee fields and the rest is filled from the seeded template; no file → PDF auto-generated with QR)
 - `PUT /api/admin/certificates/:id` (auto-generated PDFs are regenerated; uploaded files are kept)
 - `POST /api/admin/certificates/:id/document` – replace file
+- `GET  /api/admin/generator-config` – course templates + defaults for the generator form
+- `POST /api/admin/certificates/preview` – renders the certificate PDF from form values without saving
 - `POST /api/admin/certificates/bulk` (≤ 500 rows; per-row errors returned)
 - `POST /api/admin/certificates/:id/revoke` · `DELETE /api/admin/certificates/:id` (Super Admin)
 - `GET /api/admin/scan-logs`

@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { Search, QrCode, Shield, CheckCircle, ArrowRight, UserCheck, Anchor, Sparkles } from 'lucide-react';
+import { Search, QrCode, Shield, CheckCircle, ArrowRight, Anchor, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { QrScannerModal } from '../common/QrScannerModal';
 
 export const VerifyHome: React.FC = () => {
-  const { verifyByNumber, verifyByName, showToast } = useApp();
-  const [activeTab, setActiveTab] = useState<'number' | 'name'>('number');
+  const { verifyByNumber, showToast } = useApp();
   const [certNumberInput, setCertNumberInput] = useState('');
-  const [nameInput, setNameInput] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
 
   const handleNumberSubmit = (e: React.FormEvent) => {
@@ -18,15 +16,6 @@ export const VerifyHome: React.FC = () => {
       return;
     }
     verifyByNumber(cleanNum);
-  };
-
-  const handleNameSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nameInput.trim()) {
-      showToast('Please enter a trainee name to search', 'error');
-      return;
-    }
-    verifyByName(nameInput.trim());
   };
 
   return (
@@ -68,35 +57,8 @@ export const VerifyHome: React.FC = () => {
           {/* Search Card */}
           <div className="mt-6 bg-white dark:bg-[#131F37] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-5 sm:p-7 text-left">
             
-            {/* Tabs */}
-            <div className="flex border-b border-slate-200 dark:border-slate-700 mb-5">
-              <button
-                type="button"
-                onClick={() => setActiveTab('number')}
-                className={`flex-1 pb-3 text-center text-xs sm:text-sm font-bold tracking-tight border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'number'
-                    ? 'border-[#0A7AC1] text-[#0A7AC1] dark:text-sky-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                Certificate Number (14 Digits)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('name')}
-                className={`flex-1 pb-3 text-center text-xs sm:text-sm font-bold tracking-tight border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'name'
-                    ? 'border-[#0A7AC1] text-[#0A7AC1] dark:text-sky-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                Search by Name
-              </button>
-            </div>
-
-            {/* TAB 1: Number Search Form */}
-            {activeTab === 'number' && (
+            {/* Number / certificate ID lookup (exact match only) */}
+            {(
               <form onSubmit={handleNumberSubmit} className="space-y-4">
                 <div>
                   <label
@@ -127,52 +89,6 @@ export const VerifyHome: React.FC = () => {
                   >
                     <Search className="w-4 h-4" />
                     <span>Verify Certificate</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setScannerOpen(true)}
-                    className="h-11 inline-flex items-center justify-center gap-2 px-5 rounded-lg font-bold text-xs uppercase tracking-wider text-[#0A7AC1] dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-sky-200 dark:border-sky-800 transition-colors cursor-pointer"
-                  >
-                    <QrCode className="w-4 h-4" />
-                    <span>Scan QR</span>
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* TAB 2: Name Search Form */}
-            {activeTab === 'name' && (
-              <form onSubmit={handleNameSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="traineeName"
-                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5"
-                  >
-                    Trainee Seafarer Name
-                  </label>
-                  <div className="relative flex items-center">
-                    <input
-                      id="traineeName"
-                      type="text"
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      placeholder="e.g. ELBY MATHEW or NIKOLAOS"
-                      className="w-full h-12 pl-4 pr-12 text-sm sm:text-base rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-[#1A2644] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#0A7AC1] transition-all"
-                    />
-                    <div className="absolute right-3 text-slate-400 pointer-events-none">
-                      <UserCheck className="w-5 h-5" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-                  <button
-                    type="submit"
-                    className="flex-1 h-11 inline-flex items-center justify-center gap-2 px-6 rounded-lg font-bold text-xs uppercase tracking-wider text-white bg-[#0B1F4B] hover:bg-[#0A7AC1] transition-colors shadow-sm cursor-pointer"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>Search Records</span>
                   </button>
 
                   <button

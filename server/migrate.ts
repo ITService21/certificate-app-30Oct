@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pool } from './db';
+import { seedReferenceData } from './reference-data';
 
 const sql = readFileSync(resolve(process.cwd(), 'server/schema.sql'), 'utf8');
 const statements = sql
@@ -25,5 +26,7 @@ for (const { table, column, ddl } of ADDED_COLUMNS) {
     console.log(`Added column ${table}.${column}`);
   }
 }
+await seedReferenceData(pool);
+console.log('Reference data ready (course templates, certificate defaults).');
 console.log(`Schema ready (${statements.length} statements applied).`);
 await pool.end();

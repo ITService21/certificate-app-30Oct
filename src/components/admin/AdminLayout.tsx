@@ -30,7 +30,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navItems: { view: AppView; label: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
     { view: 'admin_dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { view: 'admin_certificates', label: 'Certificates', icon: <FileText className="w-4 h-4" /> },
-    { view: 'admin_add_cert', label: 'Add Certificate', icon: <PlusCircle className="w-4 h-4" /> },
+    { view: 'admin_add_cert', label: 'Generate Certificate', icon: <PlusCircle className="w-4 h-4" /> },
     { view: 'admin_users', label: 'Users & Roles', icon: <Users className="w-4 h-4" />, superAdminOnly: true },
     { view: 'admin_settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
   ];
@@ -177,7 +177,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </button>
 
           <span className="text-xs font-bold text-[#0B1F4B] dark:text-white capitalize">
-            {currentView.replace('admin_', '').replace('_', ' ')}
+            {currentView === 'admin_add_cert' ? 'generate certificate' : currentView.replace('admin_', '').replace('_', ' ')}
           </span>
         </div>
 

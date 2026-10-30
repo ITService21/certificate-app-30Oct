@@ -82,16 +82,17 @@ await page.keyboard.press('Enter');
 ok(await waitText('11223344556677') && !(await text()).includes('ELBY MATHEW'), 'invalid certificate page for unknown number');
 await shot('03-invalid');
 
-section('E. Name search -> results -> open');
+section('E. Public home: exact match only, no name search');
 await page.goto(URL, { waitUntil: 'networkidle0' });
-await clickText('button', 'Search by Name');
-await page.waitForSelector('#traineeName');
-await typeInto('#traineeName', 'maria');
+t = await text();
+ok(!/Search by Name/i.test(t) && !(await page.$('#traineeName')), 'no "Search by Name" on the home page');
+await typeInto('#certNumber', '326254748');
 await page.keyboard.press('Enter');
-ok(await waitText('MARIA SANTOS'), 'search results list MARIA SANTOS');
-await shot('04-search');
-await clickText('button', 'View');
-ok(await waitText('UAG-TC-25-BRM'), 'opens certificate from search result');
+ok(await waitText('326254748') && !(await text()).includes('ELBY MATHEW'), 'partial number does not open a certificate');
+await page.goto(URL, { waitUntil: 'networkidle0' });
+await typeInto('#certNumber', 'UAG-TC-22-PSCRB-01115');
+await page.keyboard.press('Enter');
+ok(await waitText('ELBY MATHEW'), 'full certificate ID opens the certificate');
 
 section('F. QR deep links: /certificate/<number> (new) and ?verify= (legacy)');
 await page.goto(`${URL}/certificate/32625474824291`, { waitUntil: 'networkidle0' });
@@ -122,45 +123,82 @@ ok(/Dashboard/i.test(t), 'dashboard visible');
 ok(t.includes('6') , 'dashboard shows data counts');
 await shot('05-dashboard');
 
-section('H. Session survives reload');
+section('H. Refresh keeps you inside the admin panel');
+ok(page.url().endsWith('/admin'), `dashboard URL is /admin (${page.url()})`);
 await page.reload({ waitUntil: 'networkidle0' });
 await sleep(800);
-await clickText('button', 'Admin Panel');
-await sleep(800);
 t = await text();
-ok(/super admin/i.test(t) && !/Sign In to Console/i.test(t), 'still signed in after reload (token restored from API, no login prompt)');
+ok(/super admin/i.test(t) && /Dashboard/i.test(t) && !/Sign In to Console/i.test(t) && !/Verify a Certificate/i.test(t), 'still on the dashboard after refresh');
+await clickText('button', 'Certificates');
+await sleep(500);
+ok(page.url().endsWith('/admin/certificates'), `list URL is /admin/certificates (${page.url()})`);
+await page.reload({ waitUntil: 'networkidle0' });
+await sleep(800);
+ok(page.url().endsWith('/admin/certificates') && /Certificates/i.test(await text()) && !/Verify a Certificate/i.test(await text()), 'refresh on a sub-page stays on that page');
+await page.goto(`${URL}/admin/users`, { waitUntil: 'networkidle0' });
+await sleep(600);
+ok(/Invite/i.test(await text()), 'direct URL /admin/users opens Users page');
+await clickText('button', 'Dashboard').catch(() => {});
 
-section('I. Add certificate with PDF upload');
-await clickText('button', 'Add Certificate');
-await page.waitForSelector('#unique-num');
+section('I. Generate a certificate (trainee details only; the rest is seeded)');
+const setInput = (sel, val) => page.$eval(sel, (el, v) => {
+  const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v);
+  el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+}, val);
+const fillGenerator = async ({ name, number, id }) => {
+  await page.waitForSelector('#course option[value="COOK"]');
+  await setInput('#course', 'COOK');
+  await typeInto('#trainee-name', name);
+  await typeInto('#passport', 'z4326490');
+  await typeInto('#nationality', 'indian');
+  await setInput('#start', '2026-03-02');
+  await setInput('#end', '2026-03-06');
+  await typeInto('#location', 'azerbaijan');
+  if (number) {
+    await clickText('button', 'Advanced');
+    await typeInto('#unique-num', number);
+    await typeInto('#cert-id', id);
+  }
+};
+await clickText('button', 'Generate Certificate');
 const uniq = String(Math.floor(1e13 + Math.random() * 9e13));
 const certId = `UI-TEST-${Date.now()}`;
-const fileInput = await page.$('input[type=file]');
-fs.writeFileSync(`${S}/doc.pdf`, Buffer.from(await (await fetch(`${API}/verify/32625474824291/document`)).arrayBuffer()));
-await fileInput.uploadFile(`${S}/doc.pdf`);
-ok(await waitText('uploaded successfully'), 'file selected toast');
-await typeInto('#unique-num', uniq);
-await typeInto('#cert-id', certId);
-await typeInto('input[placeholder="e.g. ELBY MATHEW"]', 'browser tester');
-await shot('06-add-form');
-await clickText('button', 'Save & Publish Certificate');
-ok(await waitText('Certificate Published'), 'publish success modal');
-await shot('07-published');
+const formText = await text();
+ok(!/Upload Certificate/i.test(formText) && !/Save as Draft/i.test(formText), 'no upload / draft / long add form any more');
+await fillGenerator({ name: 'browser tester', number: uniq, id: certId });
+await shot('06-generate-form');
+ok((await text()).includes('Preview Certificate PDF'), 'form has a Preview Certificate PDF button');
+ok((await text()).includes('Certificate valid until'), 'shows the computed validity');
+await page.evaluate(() => document.querySelector('form').requestSubmit());
+ok(await waitText('Certificate Ready'), 'success modal after generating');
+ok((await text()).toLowerCase().includes('open certificate pdf') && (await text()).toLowerCase().includes('generate another'), 'modal offers Open PDF / Generate Another');
+await shot('07-generated');
 const apiCert = await (await fetch(`${API}/verify/${uniq}`)).json();
-ok(apiCert.traineeName === 'BROWSER TESTER' && apiCert.documentName === 'doc.pdf', `stored in MySQL with uploaded file name (${apiCert.documentName})`);
+ok(apiCert.traineeName === 'BROWSER TESTER' && apiCert.passportNumber === 'Z4326490' && apiCert.nationality === 'INDIAN', 'trainee details stored');
+ok(apiCert.courseTitle === "SHIP'S COOK" && /Maritime Labor Convention/.test(apiCert.stcwRegulation) && apiCert.signatoryName === 'Claudia Galeano', 'course wording + signatory came from the seeded data');
+ok(apiCert.documentName === `${certId}.pdf`, `PDF generated and stored (${apiCert.documentName})`);
 const docRes = await fetch(`${API}/verify/${uniq}/document`);
-ok(docRes.headers.get('content-type') === 'application/pdf' && (await docRes.arrayBuffer()).byteLength === fs.statSync(`${S}/doc.pdf`).size, 'uploaded PDF bytes round-trip through MySQL');
+const docBuf = Buffer.from(await docRes.arrayBuffer());
+ok(docRes.headers.get('content-type') === 'application/pdf' && docBuf.subarray(0, 5).toString() === '%PDF-' && docBuf.length > 5000, 'stored file is the generated PDF');
 
-await clickText('button', 'Back to Registry List');
-await sleep(500);
-section('J. Duplicate is rejected in UI');
-await clickText('button', 'Add Certificate');
-await page.waitForSelector('#unique-num');
-await typeInto('#unique-num', uniq);
-await typeInto('#cert-id', 'DUP-' + Date.now());
-await typeInto('input[placeholder="e.g. ELBY MATHEW"]', 'dup person');
-await clickText('button', 'Save & Publish Certificate');
+await clickText('button', 'Generate Another');
+await sleep(300);
+section('J. Duplicate number is rejected in the UI');
+await fillGenerator({ name: 'dup person', number: uniq, id: 'DUP-' + Date.now() });
+await page.evaluate(() => document.querySelector('form').requestSubmit());
 ok(await waitText('already registered'), 'duplicate number blocked');
+
+section('J2. Automatic certificate ID');
+await clickText('button', 'Certificates');
+await clickText('button', 'Generate Certificate');
+await fillGenerator({ name: 'auto id person' });
+await page.evaluate(() => document.querySelector('form').requestSubmit());
+ok(await waitText('Certificate Ready'), 'generated without typing an ID or number');
+const autoId = (await text()).match(/UAG-TC-26-COOK-\d{5}/)?.[0];
+ok(!!autoId, `ID generated automatically (${autoId})`);
+await clickText('button', 'Back to Registry List');
+await sleep(400);
 
 section('K. Certificates list, filter, revoke');
 await clickText('button', 'Certificates');
@@ -222,7 +260,7 @@ ok((await page.evaluate(() => localStorage.getItem('certverify_token'))) === nul
 ok((await page.evaluate(() => localStorage.getItem('certverify_certificates'))) === null, 'no certificate data in localStorage');
 
 section('Q. Browser console');
-const relevant = consoleErrors.filter((e) => !/favicon|Failed to load resource.*(401|404)/.test(e));
+const relevant = consoleErrors.filter((e) => !/favicon|Failed to load resource.*(401|404|409)/.test(e));
 ok(relevant.length === 0, `no unexpected console errors${relevant.length ? ': ' + relevant.slice(0, 3).join(' | ') : ''}`);
 
 await browser.close();

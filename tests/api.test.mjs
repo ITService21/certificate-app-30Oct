@@ -187,8 +187,6 @@ r = await call('GET', `/verify/${n3}`);
 ok(r.status === 404, 'draft hidden from public verify');
 res = await call('GET', `/verify/${n3}/document`, { raw: true });
 ok(res.status === 404, 'draft document hidden from public');
-r = await call('GET', '/search?q=TEST%20SEAFARER');
-ok(!r.data.some((c) => c.id === draft.id), 'draft excluded from public search');
 r = await call('GET', `/verify/${n3}`, { token: admin });
 ok(r.status === 200, 'draft visible to staff');
 r = await call('PUT', `/admin/certificates/${draft.id}`, { token: issuer, json: { status: 'valid' } });
@@ -251,17 +249,51 @@ r = await call('POST', '/admin/certificates/bulk', { token: issuer, json: { item
 ok(r.status === 400, 'empty bulk -> 400');
 
 // ------------------------------------------------------------------
-section('11. Search');
-r = await call('GET', '/search?q=a');
-ok(r.status === 400, 'search needs 2+ chars');
+section('11. Exact-match lookup, no name search');
 r = await call('GET', '/search?q=elby');
-ok(r.status === 200 && r.data.some((c) => c.traineeName.includes('ELBY')), 'search by name');
-r = await call('GET', '/search?q=Fire');
-ok(r.status === 200 && r.data.length > 0, `search by course (${r.data.length} hits)`);
-r = await call('GET', '/search?q=%25%25');
-ok(r.status === 200 && r.data.length === 0, 'LIKE wildcard % treated literally');
-r = await call('GET', '/search?q=zzzzqqqq');
-ok(r.status === 200 && r.data.length === 0, 'no results -> empty array');
+ok(r.status === 404, 'name search endpoint removed');
+r = await call('GET', '/verify/3262547482429');
+ok(r.status === 404, 'partial number (13 of 14 digits) does not match');
+r = await call('GET', '/verify/32625474');
+ok(r.status === 404, 'number prefix does not match');
+r = await call('GET', '/verify/UAG-TC-22-PSCRB');
+ok(r.status === 404, 'partial certificate ID does not match');
+r = await call('GET', '/verify/PSCRB-01115');
+ok(r.status === 404, 'certificate ID substring does not match');
+r = await call('GET', '/verify/32625474824291');
+ok(r.status === 200 && r.data.uniqueNumber === '32625474824291', 'full 14-digit number matches');
+r = await call('GET', '/verify/UAG-TC-22-PSCRB-01115');
+ok(r.status === 200 && r.data.uniqueNumber === '32625474824291', 'full certificate ID matches');
+r = await call('POST', '/admin/certificates/preview', { json: { traineeName: 'x' } });
+ok(r.status === 401, 'PDF preview requires login');
+res = await call('POST', '/admin/certificates/preview', { token: issuer, json: { traineeName: 'preview person', certificateId: 'PRV-1', nationality: 'GREEK' }, raw: true });
+ok(res.status === 200 && res.headers.get('content-type') === 'application/pdf' && Buffer.from(await res.arrayBuffer()).subarray(0, 5).toString() === '%PDF-', 'PDF preview renders a real PDF without saving');
+r = await call('GET', '/verify/PRV-1');
+ok(r.status === 404, 'preview did not create a certificate');
+
+// ------------------------------------------------------------------
+section('11b. Certificate generator (seeded course templates)');
+r = await call('GET', '/admin/generator-config');
+ok(r.status === 401, 'generator config needs login');
+r = await call('GET', '/admin/generator-config', { token: issuer });
+ok(r.status === 200 && r.data.courses.length >= 7 && r.data.courses.some((c) => c.code === 'COOK' && c.title === "SHIP'S COOK"), `templates seeded (${r.data.courses?.length})`);
+ok(r.data.defaults.signatoryName === 'Claudia Galeano', 'default signatory seeded');
+const gen = { courseCode: 'COOK', traineeName: 'stanley cardozo', passportNumber: 'Z4326490', nationality: 'INDIAN', trainingStartDate: '2026-03-02', trainingEndDate: '2026-03-06', trainingLocation: 'AZERBAIJAN', issueDate: '2026-03-08' };
+r = await call('POST', '/admin/certificates', { token: issuer, form: makeForm(gen) });
+ok(r.status === 201, `generate with trainee details only (${r.status})`);
+const g1 = r.data;
+ok(/^UAG-TC-26-COOK-\d{5}$/.test(g1.certificateId), `certificate ID auto-generated (${g1.certificateId})`);
+ok(g1.uniqueNumber.length === 14, 'unique number auto-generated');
+ok(g1.courseTitle === "SHIP'S COOK" && g1.approvalResolution.includes('DGGM-CFM-005-2024') && g1.signatoryTitle === 'CTC General Manager', 'course, approval and signatory filled from seeded data');
+ok(g1.expiryDate === '2031-03-07' && g1.validityYears === 5, `expiry computed from issue date (${g1.expiryDate})`);
+ok(g1.documentName === `${g1.certificateId}.pdf`, 'PDF generated');
+r = await call('POST', '/admin/certificates', { token: issuer, form: makeForm({ ...gen, traineeName: 'second trainee' }) });
+const seq1 = Number(g1.certificateId.slice(-5)), seq2 = Number(r.data.certificateId.slice(-5));
+ok(r.status === 201 && seq2 === seq1 + 1, `ID sequence increments (${g1.certificateId} -> ${r.data.certificateId})`);
+r = await call('POST', '/admin/certificates', { token: issuer, form: makeForm({ ...gen, courseCode: 'NOPE' }) });
+ok(r.status === 400, 'unknown course rejected');
+res = await call('POST', '/admin/certificates/preview', { token: issuer, json: gen, raw: true });
+ok(res.status === 200 && res.headers.get('content-type') === 'application/pdf', 'preview works with a course template');
 
 // ------------------------------------------------------------------
 section('12. Users & roles');

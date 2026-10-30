@@ -3,6 +3,7 @@ import { config } from './config';
 import { pool, toCertificate, CERT_SELECT, toDbDateTime } from './db';
 import { generateCertificatePdf } from './pdf';
 import { saveDocument } from './documents';
+import { seedReferenceData } from './reference-data';
 import { INITIAL_CERTIFICATES, INITIAL_SCAN_LOGS, INITIAL_USERS } from '../src/data/mockData';
 
 const CERT_COLUMNS = (c: any) => ({
@@ -54,6 +55,7 @@ export async function seedDemo({ reset = false }: { reset?: boolean } = {}) {
     }
   }
 
+  await seedReferenceData(pool);
   const hash = await bcrypt.hash(config.seedPassword, 10);
   for (const u of INITIAL_USERS) {
     await pool.query(

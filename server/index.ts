@@ -123,16 +123,60 @@ async function fetchCertificate(db: Pool | PoolConnection, where: string, params
   return rows.length ? toCertificate(rows[0]) : null;
 }
 
+const clean = (data: any) => Object.fromEntries(Object.entries(data).filter(([, v]) => v !== '' && v != null));
+
+/** Next free "UAG-TC-<yy>-<CODE>-<nnnnn>" for that course and year. */
+async function nextCertificateId(db: Pool | PoolConnection, code: string, issueDate: string): Promise<string> {
+  const prefix = `UAG-TC-${issueDate.slice(2, 4)}-${code}-`;
+  const [rows] = await db.query<any[]>('SELECT certificate_id FROM certificates WHERE certificate_id LIKE ?', [`${prefix}%`]);
+  const max = rows.reduce((m, r) => Math.max(m, Number(String(r.certificate_id).slice(prefix.length)) || 0), 0);
+  return `${prefix}${String(max + 1).padStart(5, '0')}`;
+}
+
+/**
+ * Turns what the issuer typed (trainee + training details, a course code) into a complete certificate:
+ * seeded defaults < course template < explicit values. Missing certificate ID / expiry are generated.
+ */
+async function resolveInput(db: Pool | PoolConnection, data: any): Promise<any> {
+  const [defRows] = await db.query<any[]>('SELECT * FROM certificate_defaults WHERE id = 1');
+  const def = defRows[0];
+  let template: Record<string, unknown> = {};
+  if (data.courseCode) {
+    const [rows] = await db.query<any[]>('SELECT * FROM course_templates WHERE code = ? AND active = 1', [String(data.courseCode)]);
+    if (!rows.length) throw new HttpError(400, 'Unknown course');
+    const t = rows[0];
+    template = {
+      courseTitle: t.title, stcwRegulation: t.stcw_regulation, approvalResolution: t.approval_resolution,
+      approvalAuthority: t.approval_authority, approvalDate: t.approval_date, approvalValidUntil: t.approval_valid_until,
+      validityYears: t.validity_years,
+    };
+  }
+  const merged = {
+    ...DEFAULTS(),
+    ...(def ? { signatoryName: def.signatory_name, signatoryTitle: def.signatory_title, trainingMode: def.training_mode } : {}),
+    ...template,
+    ...clean(data),
+  } as any;
+  if (!data.expiryDate && /^\d{4}-\d{2}-\d{2}$/.test(String(merged.issueDate)) && !Number.isNaN(Date.parse(merged.issueDate))) {
+    const d = new Date(`${merged.issueDate}T00:00:00Z`);
+    d.setUTCFullYear(d.getUTCFullYear() + Number(merged.validityYears || 5));
+    d.setUTCDate(d.getUTCDate() - 1);
+    merged.expiryDate = d.toISOString().slice(0, 10);
+  }
+  if (!merged.certificateId) {
+    merged.certificateId = data.courseCode && /^\d{4}-/.test(String(merged.issueDate)) ? await nextCertificateId(db, String(data.courseCode), merged.issueDate) : `UAG-TC-26-${Math.floor(Math.random() * 9000 + 1000)}`;
+  }
+  merged.traineeName = String(merged.traineeName || 'UNKNOWN SEAFARER').toUpperCase();
+  return merged;
+}
+
 interface UploadedFile { originalname: string; buffer: Buffer }
 
 async function createCertificate(data: any, user: { id: string }, file: UploadedFile | undefined, baseUrl: string): Promise<Certificate> {
   const uniqueNumber = data.uniqueNumber ? String(data.uniqueNumber).replace(/\D/g, '') : '';
   if (data.uniqueNumber && uniqueNumber.length !== 14) throw new HttpError(400, 'Unique number must be exactly 14 digits');
 
-  const merged = { ...DEFAULTS(), ...Object.fromEntries(Object.entries(data).filter(([, v]) => v !== '' && v != null)) } as any;
-  if (!merged.certificateId) merged.certificateId = `UAG-TC-26-${Math.floor(Math.random() * 9000 + 1000)}`;
-  if (!merged.traineeName) merged.traineeName = 'UNKNOWN SEAFARER';
-  merged.traineeName = String(merged.traineeName).toUpperCase();
+  const merged = await resolveInput(pool, data);
   const cols = validateFields(merged, Object.keys(FIELDS));
 
   let uploadMime: string | null = null;
@@ -218,6 +262,7 @@ app.get('/api/config', ah(async (req, res) => {
   res.json({ settings, publicUrl: baseUrlFor(req) });
 }));
 
+// Exact match only: the whole value must equal a 14-digit number or a certificate ID (no partial / LIKE matching).
 app.get('/api/verify/:id', publicLimiter, ah(async (req, res) => {
   const id = String(req.params.id).trim();
   if (!/^[A-Za-z0-9._-]{3,60}$/.test(id)) return res.status(400).json({ error: 'Invalid certificate number' });
@@ -245,18 +290,6 @@ app.get('/api/verify/:uniqueNumber/document', publicLimiter, ah(async (req, res)
   res.setHeader('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename="${safeName}"`);
   res.setHeader('Cache-Control', 'no-cache');
   res.send(d.data);
-}));
-
-app.get('/api/search', publicLimiter, ah(async (req, res) => {
-  const q = String(req.query.q || '').trim();
-  if (q.length < 2) return res.status(400).json({ error: 'Enter at least 2 characters' });
-  const like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
-  const [rows] = await pool.query<any[]>(
-    `${CERT_SELECT} WHERE c.status <> 'draft' AND (c.trainee_name LIKE ? OR c.course_title LIKE ?)
-     ORDER BY c.issue_date DESC LIMIT 50`,
-    [like, like],
-  );
-  res.json(rows.map(toCertificate));
 }));
 
 // ================================= AUTH ==========================================
@@ -307,6 +340,36 @@ const parseBody = (req: Request) => {
 admin.post('/certificates', upload.single('file'), ah(async (req: AuthedRequest, res) => {
   const cert = await createCertificate(parseBody(req), req.user!, req.file, baseUrlFor(req));
   res.status(201).json(cert);
+}));
+
+// What the generator form needs: course templates + the values that are the same on every certificate.
+admin.get('/generator-config', ah(async (_req, res) => {
+  const [courses] = await pool.query<any[]>('SELECT * FROM course_templates WHERE active = 1 ORDER BY sort_order, title');
+  const [defRows] = await pool.query<any[]>('SELECT * FROM certificate_defaults WHERE id = 1');
+  const def = defRows[0];
+  res.json({
+    courses: courses.map((c) => ({
+      code: c.code, title: c.title, stcwRegulation: c.stcw_regulation, approvalResolution: c.approval_resolution,
+      approvalAuthority: c.approval_authority, approvalDate: c.approval_date, approvalValidUntil: c.approval_valid_until, validityYears: c.validity_years,
+    })),
+    defaults: def
+      ? { signatoryName: def.signatory_name, signatoryTitle: def.signatory_title, trainingMode: def.training_mode }
+      : { signatoryName: 'Claudia Galeano', signatoryTitle: 'CTC General Manager', trainingMode: 'Presential' },
+  });
+}));
+
+// Renders the official certificate PDF from form values without saving anything (Add Certificate -> Preview).
+admin.post('/certificates/preview', ah(async (req: AuthedRequest, res) => {
+  const data = parseBody(req);
+  const merged = await resolveInput(pool, { traineeName: 'FULL NAME', ...clean(data) });
+  validateFields(merged, Object.keys(FIELDS));
+  const digits = String(data.uniqueNumber ?? '').replace(/\D/g, '');
+  const cert = { ...merged, id: 'preview', uniqueNumber: digits.length === 14 ? digits : '00000000000000' } as Certificate;
+  const pdf = await generateCertificatePdf(cert, baseUrlFor(req));
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="certificate-preview.pdf"');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(pdf);
 }));
 
 admin.post('/certificates/bulk', ah(async (req: AuthedRequest, res) => {

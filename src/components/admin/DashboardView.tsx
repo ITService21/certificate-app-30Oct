@@ -98,7 +98,7 @@ export const DashboardView: React.FC = () => {
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-white bg-[#0B1F4B] hover:bg-[#0A7AC1] transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>Add Certificate</span>
+          <span>Generate Certificate</span>
         </button>
       </div>
 

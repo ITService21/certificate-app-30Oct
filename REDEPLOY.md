@@ -12,6 +12,10 @@ First-time install is in [DEPLOYMENT.md](DEPLOYMENT.md).
 | 3 | Scanning opens a minimal **QR Validity Query** page (6 rows + *View Certificate*), responsive for phones | frontend rebuild |
 | 4 | New `certificates.nationality` column (shown on that page, editable in Admin → Add/Edit) | `npm run db:init` (adds the column; additive, no data loss) |
 | 5 | New command `npm run pdf:regenerate` | – |
+| 6 | Refreshing the admin panel keeps you on the same screen (`/admin`, `/admin/certificates`, …) instead of the public page | frontend rebuild only |
+| 7 | Public lookup is **exact match** only (full 14-digit number or full certificate ID); **Search by Name removed** (`/api/search` no longer exists) | rebuild + restart |
+| 8 | **Add Certificate form replaced by a Certificate Generator**: pick a course, enter only trainee details; company text, course wording, approval, signatory, ID, number, expiry and QR are automatic. Preview / Open / Download PDF | rebuild + restart + `db:init` |
+| 9 | Seeded reference data on production: new tables `course_templates` (7 courses incl. Ship's Cook) and `certificate_defaults` (signatory) | `npm run db:init` |
 
 Old printed/shared links `…/?verify=<number>` **keep working** as long as the old host still reaches this app.
 
@@ -93,7 +97,7 @@ server {
 
 ```bash
 npm run db:init
-# expected: "Added column certificates.nationality" then "Schema ready (5 statements applied)."
+# expected: "Added column certificates.nationality", "Reference data ready (course templates, certificate defaults).", "Schema ready (7 statements applied)."
 ```
 Safe to re-run; on a second run it only prints "Schema ready".
 
@@ -114,7 +118,13 @@ npm run pdf:regenerate               # does it (≈ 1 s per 20 certificates; the
 ```
 Check the first lines of the output: `QR base URL = https://browser.seafarersctc.app`. If it prints anything else, stop and fix `PUBLIC_URL`.
 
-## 9. Fill in nationality for existing certificates
+## 9. Seeded course data & first-use notes
+
+- `db:init` (step 6) already created and filled the course templates and the default signatory on production. Check: `mysql -u certverify -p certverify -e "SELECT code, title FROM course_templates; SELECT * FROM certificate_defaults;"`.
+- The **approval validity printed on the certificates** ("Valid until June 12th, 2026" for the DGGM resolution) comes from the template. When the authority renews it, edit `approvalValidUntil`/`RESOLUTION` in `server/reference-data.ts` (constant `APPROVAL_VALID_UNTIL`), deploy, run `npm run db:init`. Certificates already issued keep the dates they were printed with.
+- The automatic Certificate ID continues from the highest existing `UAG-TC-<yy>-<COURSE>-<nnnnn>` already in the database, so existing numbering (e.g. …-COOK-00661) is respected. IDs imported with a different pattern are ignored for the counter.
+
+## 9b. Fill in nationality for existing certificates
 
 The new column is empty for old records (the public page shows `N/A`). Either:
 - Admin → Certificates → ✏️ Edit → *Nationality* (saving regenerates the PDF automatically), or
@@ -131,8 +141,11 @@ The new column is empty for old records (the public page shows `N/A`). Either:
 - [ ] Open a regenerated PDF and **scan its QR with a phone** → lands on the page above (not on an old domain)
 - [ ] Old link `https://<old-domain>/?verify=<number>` still opens the certificate (or redirects to the new host)
 - [ ] Phone check at 390 px width: no sideways scrolling, rows readable
-- [ ] Admin login works; Add Certificate shows the new *Nationality* field; a newly created certificate downloads with the new QR
+- [ ] Admin login works; sidebar says **Generate Certificate**; the Course dropdown lists the 7 seeded courses (incl. SHIP'S COOK)
 - [ ] Dashboard → *Recent Verification Scans* shows your phone scan
+- [ ] Home page has no "Search by Name"; entering part of a number or ID gives "not found"
+- [ ] Log in to Admin, go to Certificates, press **refresh (F5)** → you stay on Certificates (URL `/admin/certificates`)
+- [ ] Generate Certificate → pick *SHIP'S COOK*, enter name / passport / dates / location only → **Preview Certificate PDF** shows the full official layout → **Generate Certificate** → Certificate ID like `UAG-TC-26-COOK-00662` was filled in automatically, QR scans to the new URL
 - [ ] An unknown number (`/certificate/00000000000000`) shows "not found"
 - [ ] `journalctl -u certverify -n 50 --no-pager` has no errors
 
