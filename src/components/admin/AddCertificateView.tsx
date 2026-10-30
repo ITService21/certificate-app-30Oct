@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getPublicUrl } from '../../api';
 import { Certificate } from '../../types';
 import {
   Upload,
@@ -30,6 +31,7 @@ export const AddCertificateView: React.FC = () => {
     size: string;
     dataUrl?: string;
     isImage: boolean;
+    file: File;
   } | null>(null);
 
   // Section 2: Identifier (Manual entry from certificate, NO random generator)
@@ -94,6 +96,7 @@ export const AddCertificateView: React.FC = () => {
         size: sizeMb,
         dataUrl,
         isImage,
+        file,
       });
       showToast(`Certificate "${file.name}" uploaded successfully`, 'success');
     };
@@ -108,7 +111,7 @@ export const AddCertificateView: React.FC = () => {
     certificates.some((c) => c.uniqueNumber === uniqueNumber)
   );
 
-  const handleSubmit = (status: 'valid' | 'draft') => {
+  const handleSubmit = async (status: 'valid' | 'draft') => {
     const cleanNumber = uniqueNumber.replace(/\D/g, '');
 
     if (!cleanNumber || cleanNumber.length !== 14) {
@@ -131,7 +134,7 @@ export const AddCertificateView: React.FC = () => {
       return;
     }
 
-    const created = addCertificate({
+    const created = await addCertificate({
       uniqueNumber: cleanNumber,
       certificateId: certificateId.trim(),
       status,
@@ -153,10 +156,9 @@ export const AddCertificateView: React.FC = () => {
       validityYears,
       signatoryName,
       signatoryTitle,
-      documentUrl: uploadedFile?.dataUrl,
-      documentName: uploadedFile?.name || `${certificateId}.pdf`,
-      documentSize: uploadedFile?.size || '1.8 MB',
-    });
+    }, uploadedFile?.file);
+
+    if (!created) return;
 
     if (status === 'valid') {
       setPublishedCert(created);
@@ -674,7 +676,7 @@ const PublishedSuccessModal: React.FC<{
   onViewDetails: () => void;
 }> = ({ certificate, onClose, onViewDetails }) => {
   const [copied, setCopied] = useState(false);
-  const verifyLink = `${window.location.origin}/?verify=${certificate.uniqueNumber}`;
+  const verifyLink = `${getPublicUrl()}/?verify=${certificate.uniqueNumber}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(verifyLink);

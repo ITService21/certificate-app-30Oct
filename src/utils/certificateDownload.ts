@@ -1,20 +1,16 @@
 import QRCode from 'qrcode';
+import { getPublicUrl, downloadDocument } from '../api';
 import { Certificate } from '../types';
 
 /**
  * Downloads the official certificate file.
- * If a custom file/image was uploaded by admin, downloads that file directly.
- * Otherwise, renders an ultra high-resolution official STCW certificate onto canvas and downloads as PNG.
+ * Downloads the document stored in the database (uploaded file or the server-generated PDF).
+ * Falls back to rendering an ultra high-resolution official STCW certificate onto canvas and downloads as PNG.
  */
 export async function downloadOfficialCertificate(cert: Certificate): Promise<void> {
-  // 1. If admin uploaded an actual file (dataUrl or link), download directly
-  if (cert.documentUrl && cert.documentUrl.startsWith('data:')) {
-    const a = document.createElement('a');
-    a.href = cert.documentUrl;
-    a.download = cert.documentName || `${cert.certificateId}_Certificate.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // 1. Download the PDF/image stored in the database for this certificate
+  if (cert.documentUrl) {
+    await downloadDocument(cert.documentUrl, cert.documentName || `${cert.certificateId}.pdf`);
     return;
   }
 
@@ -163,7 +159,7 @@ export async function downloadOfficialCertificate(cert: Certificate): Promise<vo
   // Bottom Right: Generate and embed real QR Code
   try {
     const qrDataUrl = await QRCode.toDataURL(
-      `${window.location.origin}/?verify=${cert.uniqueNumber}`,
+      `${getPublicUrl()}/?verify=${cert.uniqueNumber}`,
       { width: 280, margin: 1, color: { dark: '#0B1F4B', light: '#FFFFFF' } }
     );
     const qrImg = new Image();

@@ -5,22 +5,15 @@ import { Lock, Mail, ArrowRight, ShieldCheck, KeyRound, ArrowLeft } from 'lucide
 
 export const AdminLogin: React.FC = () => {
   const { login, setCurrentView } = useApp();
-  const [email, setEmail] = useState('admin@ctc.com.pa');
-  const [password, setPassword] = useState('••••••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      login(email, password);
-      setIsLoading(false);
-    }, 400);
-  };
-
-  const handleQuickLogin = (roleEmail: string) => {
-    setEmail(roleEmail);
-    login(roleEmail);
+    await login(email, password);
+    setIsLoading(false);
   };
 
   return (
@@ -80,6 +73,7 @@ export const AdminLogin: React.FC = () => {
                   id="admin-password"
                   type="password"
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-11 pl-10 pr-3 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-[#1A2644] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#0A7AC1]"
@@ -97,40 +91,6 @@ export const AdminLogin: React.FC = () => {
               <span>{isLoading ? 'Authenticating...' : 'Sign In to Console'}</span>
             </button>
           </form>
-
-          {/* Quick Demo Logins for instant evaluation */}
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 space-y-2">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 text-center">
-              Quick Role Switch for Evaluation:
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin@ctc.com.pa')}
-                className="p-2 text-left rounded-lg bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors cursor-pointer"
-              >
-                <div className="text-[11px] font-bold text-[#0B1F4B] dark:text-sky-300">
-                  Super Admin
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                  Claudia Galeano
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('issuer@ctc.com.pa')}
-                className="p-2 text-left rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-              >
-                <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                  Issuer Officer
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                  Manuel Castillero
-                </div>
-              </button>
-            </div>
-          </div>
 
           {/* Return link */}
           <div className="mt-5 text-center">

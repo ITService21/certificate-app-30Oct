@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import QRCode from 'qrcode';
+import { getPublicUrl } from '../../api';
 import { Download, Check, Copy } from 'lucide-react';
 
 interface QrCodeViewerProps {
@@ -27,7 +28,7 @@ export const QrCodeViewer: React.FC<QrCodeViewerProps> = ({
     // Generate QR code for the verification link / number
     const verificationPayload = value.startsWith('http') 
       ? value 
-      : `${window.location.origin}/?verify=${value}`;
+      : `${getPublicUrl()}/?verify=${value}`;
 
     QRCode.toDataURL(verificationPayload, {
       width: size * 2,

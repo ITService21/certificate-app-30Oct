@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { INITIAL_CERTIFICATES, INITIAL_USERS, INITIAL_SCAN_LOGS } from '../../data/mockData';
 import { Settings, ShieldCheck, Building, QrCode, RefreshCcw, Save, Check, Globe, Mail, Phone, MapPin } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-  const { portalConfig, updatePortalConfig, showToast } = useApp();
+  const { portalConfig, updatePortalConfig, resetDemoData, showToast } = useApp();
 
   const [companyName, setCompanyName] = useState(portalConfig.companyName);
   const [companyGroup, setCompanyGroup] = useState(portalConfig.companyGroup);
@@ -40,16 +39,14 @@ export const SettingsView: React.FC = () => {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleResetData = () => {
-    if (confirm('Restore initial demo dataset?')) {
-      localStorage.setItem('certverify_certificates', JSON.stringify(INITIAL_CERTIFICATES));
-      localStorage.setItem('certverify_users', JSON.stringify(INITIAL_USERS));
-      localStorage.setItem('certverify_scan_logs', JSON.stringify(INITIAL_SCAN_LOGS));
-      localStorage.removeItem('certverify_portal_config');
-      showToast('Database reset to defaults. Reloading...', 'info');
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+  const handleResetData = async () => {
+    if (confirm('This wipes ALL certificates, users and scan logs in the database and restores the demo dataset. Continue?')) {
+      if (await resetDemoData()) {
+        showToast('Database reset to demo data. Please sign in again.', 'info');
+        setTimeout(() => {
+          window.location.reload();
+        }, 800);
+      }
     }
   };
 

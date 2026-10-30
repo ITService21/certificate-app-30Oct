@@ -17,6 +17,7 @@ import {
 export const UsersRolesView: React.FC = () => {
   const { users, addUser, updateUserStatus, currentUser, showToast } = useApp();
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [tempCred, setTempCred] = useState<{ email: string; password: string } | null>(null);
 
   const isSuperAdmin = currentUser?.role === 'super_admin';
 
@@ -26,11 +27,25 @@ export const UsersRolesView: React.FC = () => {
       {inviteModalOpen && (
         <InviteUserModal
           onClose={() => setInviteModalOpen(false)}
-          onInvite={(userData) => {
-            addUser(userData);
-            setInviteModalOpen(false);
+          onInvite={async (userData) => {
+            const password = await addUser(userData);
+            if (password) {
+              setTempCred({ email: userData.email, password });
+              setInviteModalOpen(false);
+            }
           }}
         />
+      )}
+
+      {tempCred && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="font-bold">One-time temporary password for {tempCred.email}</div>
+            <code className="inline-block px-2 py-1 rounded bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-sm select-all">{tempCred.password}</code>
+            <div>Share it securely. It will not be shown again.</div>
+          </div>
+          <button onClick={() => setTempCred(null)} className="font-bold underline cursor-pointer">Dismiss</button>
+        </div>
       )}
 
       {/* Header */}
@@ -278,7 +293,7 @@ export const UsersRolesView: React.FC = () => {
 /* Invite User Modal */
 const InviteUserModal: React.FC<{
   onClose: () => void;
-  onInvite: (user: Omit<User, 'id' | 'lastLogin'>) => void;
+  onInvite: (user: Omit<User, 'id' | 'lastLogin'>) => void | Promise<void>;
 }> = ({ onClose, onInvite }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

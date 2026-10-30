@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getPublicUrl } from '../../api';
 import { Certificate, CertificateStatus } from '../../types';
 import {
   Search,
@@ -69,7 +70,7 @@ export const CertificatesListView: React.FC = () => {
   }, [certificates, search, statusFilter, courseFilter]);
 
   const handleCopyLink = (uniqueNum: string) => {
-    const link = `${window.location.origin}/?verify=${uniqueNum}`;
+    const link = `${getPublicUrl()}/?verify=${uniqueNum}`;
     navigator.clipboard.writeText(link);
     setCopiedId(uniqueNum);
     showToast(`Verification link copied for ${uniqueNum}`, 'info');

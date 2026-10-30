@@ -1,6 +1,6 @@
 import React from 'react';
 import { CtcLogo, UagLogo, PanamaOfficialBadge } from './Logos';
-import { CTC_COMPANY_INFO } from '../../data/mockData';
+import { CTC_COMPANY_INFO } from '../../data/company';
 import { ShieldCheck, Mail, MapPin, Globe, Phone, ExternalLink } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 

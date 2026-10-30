@@ -20,14 +20,14 @@ import { UsersRolesView } from './components/admin/UsersRolesView';
 import { SettingsView } from './components/admin/SettingsView';
 
 const MainContent: React.FC = () => {
-  const { currentView, openCertificateById, currentUser, setCurrentView } = useApp();
+  const { currentView, openCertificateById, currentUser, loading } = useApp();
 
   // Check URL parameters for direct verification links (e.g. ?verify=32625474824291)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const verifyId = params.get('verify');
     if (verifyId) {
-      openCertificateById(verifyId);
+      openCertificateById(verifyId, 'qr_scan');
     }
   }, []);
 
@@ -52,7 +52,10 @@ const MainContent: React.FC = () => {
 
   // Render Public or Login View
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col" aria-busy={loading}>
+      {loading && (
+        <div className="text-center text-xs font-semibold text-[#0A7AC1] py-2" role="status">Verifying…</div>
+      )}
       {currentView === 'verify_home' && <VerifyHome />}
       {currentView === 'search_results' && <SearchResults />}
       {currentView === 'cert_details' && <CertificateDetails />}

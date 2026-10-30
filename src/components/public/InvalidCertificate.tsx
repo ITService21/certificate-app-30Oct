@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { AlertCircle, ArrowLeft, Search, Mail, Phone, ShieldAlert } from 'lucide-react';
-import { CTC_COMPANY_INFO } from '../../data/mockData';
+import { CTC_COMPANY_INFO } from '../../data/company';
 
 export const InvalidCertificate: React.FC = () => {
   const { searchQuery, setCurrentView, verifyByNumber } = useApp();

@@ -15,7 +15,7 @@ import {
 import { CertificateStatus } from '../../types';
 
 export const DashboardView: React.FC = () => {
-  const { certificates, setCurrentView, openCertificateById } = useApp();
+  const { certificates, scanLogs, setCurrentView, openCertificateById } = useApp();
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -252,6 +252,48 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Recent verification scans (from the scan_logs table) */}
+      <div className="bg-white dark:bg-[#131F37] border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-[#0B1F4B] dark:text-white">Recent Verification Scans</h2>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{scanLogs.length} logged</span>
+        </div>
+        {scanLogs.length === 0 ? (
+          <p className="text-xs text-slate-500 dark:text-slate-400 py-4 text-center">No verifications recorded yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <tr>
+                  <th className="py-2 pr-3 font-bold">Time (UTC)</th>
+                  <th className="py-2 pr-3 font-bold">Certificate</th>
+                  <th className="py-2 pr-3 font-bold">Method</th>
+                  <th className="py-2 pr-3 font-bold">Device</th>
+                  <th className="py-2 pr-3 font-bold">IP address</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {scanLogs.slice(0, 8).map((log) => (
+                  <tr key={log.id} className={log.isSuspicious ? 'bg-red-50/60 dark:bg-red-950/20' : ''}>
+                    <td className="py-2 pr-3 font-mono tnum whitespace-nowrap text-slate-600 dark:text-slate-300">{log.timestamp.replace(' UTC', '')}</td>
+                    <td className="py-2 pr-3">
+                      <div className="font-semibold text-slate-800 dark:text-slate-200">{log.traineeName}</div>
+                      <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                        {log.certificateId}
+                        {log.isSuspicious && <span className="ml-2 font-bold text-red-600">⚠ {log.suspicionReason}</span>}
+                      </div>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{log.searchMethod === 'qr_scan' ? 'QR scan' : log.searchMethod === 'name_search' ? 'Name search' : 'Number lookup'}</td>
+                    <td className="py-2 pr-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">{log.deviceType}</td>
+                    <td className="py-2 pr-3 font-mono text-slate-600 dark:text-slate-300">{log.ipAddress}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>
