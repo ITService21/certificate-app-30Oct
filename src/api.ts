@@ -16,6 +16,8 @@ export const setToken = (t: string | null) => {
 let publicUrl = '';
 export const setPublicUrl = (u: string) => { publicUrl = u; };
 export const getPublicUrl = () => publicUrl || window.location.origin;
+/** The link encoded in every certificate QR code. */
+export const certificateUrl = (uniqueNumber: string) => `${getPublicUrl()}/certificate/${uniqueNumber}`;
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {

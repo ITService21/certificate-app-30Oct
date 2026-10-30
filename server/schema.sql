@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS certificates (
   trainee_title         VARCHAR(10)  NOT NULL DEFAULT 'Mr.',
   trainee_name          VARCHAR(160) NOT NULL,
   passport_number       VARCHAR(40)  NOT NULL DEFAULT 'N/A',
+  nationality           VARCHAR(60)  NOT NULL DEFAULT '',
 
   course_title          VARCHAR(255) NOT NULL,
   stcw_regulation       VARCHAR(400) NOT NULL,

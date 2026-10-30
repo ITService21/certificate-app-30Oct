@@ -65,12 +65,15 @@ ok(/valid/i.test(t), 'shows Valid status');
 ok(t.includes('UAG-TC-22-PSCRB-01115'), 'shows certificate ID');
 await shot('02-details-valid');
 
-section('C. Download stored PDF from details page');
-await clickText('button', 'Download Certificate');
-let dl = null;
-for (let i = 0; i < 20 && !dl; i++) { await sleep(300); dl = fs.readdirSync(DL).find((f) => !f.endsWith('.crdownload')); }
-ok(!!dl && dl.endsWith('.pdf'), `PDF downloaded (${dl})`);
-if (dl) ok(fs.readFileSync(path.join(DL, dl)).subarray(0, 5).toString() === '%PDF-', 'downloaded file is a real PDF');
+section('C. Minimal QR page: rows + View Certificate opens the stored PDF');
+t = await text();
+ok(['QR Validity Query', 'Number Certificate', 'Participant', 'Identity', 'Nationality', 'Issued Date', 'Due Date'].every((x) => t.includes(x)), 'shows only the six validity rows');
+ok(t.includes('INDIAN') && t.includes('Z6045152') && t.includes('2026-05-15'), 'row values (nationality, identity, issued date)');
+ok(!t.includes('Course') && !t.includes('Trainer') && !(await page.$('header')), 'no extra data, no site header');
+const viewHref = await page.$eval('a.qr-btn', (a) => a.getAttribute('href'));
+ok(viewHref === '/api/verify/32625474824291/document', `View Certificate links to the stored PDF (${viewHref})`);
+const pdfRes = await fetch(`${URL}${viewHref}`);
+ok(pdfRes.headers.get('content-type') === 'application/pdf' && Buffer.from(await pdfRes.arrayBuffer()).subarray(0, 5).toString() === '%PDF-', 'link returns a real PDF');
 
 section('D. Unknown number -> invalid page');
 await page.goto(URL, { waitUntil: 'networkidle0' });
@@ -90,7 +93,12 @@ await shot('04-search');
 await clickText('button', 'View');
 ok(await waitText('UAG-TC-25-BRM'), 'opens certificate from search result');
 
-section('F. QR deep link (?verify=)');
+section('F. QR deep links: /certificate/<number> (new) and ?verify= (legacy)');
+await page.goto(`${URL}/certificate/32625474824291`, { waitUntil: 'networkidle0' });
+ok(await waitText('QR Validity Query') && (await text()).includes('ELBY MATHEW'), '/certificate/<number> opens the validity page');
+ok(!(await page.$('a.qr-back')), 'no in-app back link when opened from a QR');
+await page.goto(`${URL}/certificate/00000000000000`, { waitUntil: 'networkidle0' });
+ok(await waitText('not found'), '/certificate/<unknown> shows not-found page');
 await page.goto(`${URL}/?verify=32625474824291`, { waitUntil: 'networkidle0' });
 ok(await waitText('ELBY MATHEW'), 'deep link opens certificate directly');
 await page.goto(`${URL}/?verify=84920173645102`, { waitUntil: 'networkidle0' });
@@ -169,7 +177,7 @@ const rev = await (await fetch(`${API}/verify/${uniq}`)).json();
 ok(rev.status === 'revoked' && rev.revocationNotes.includes('UI test'), 'public API now reports revoked + audit note');
 
 section('L. Public page for revoked certificate');
-await page.goto(`${URL}/?verify=${uniq}`, { waitUntil: 'networkidle0' });
+await page.goto(`${URL}/certificate/${uniq}`, { waitUntil: 'networkidle0' });
 ok(await waitText('BROWSER TESTER') && /revoked/i.test(await text()), 'public page shows REVOKED');
 await shot('10-public-revoked');
 

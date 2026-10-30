@@ -123,6 +123,8 @@ const created = r.data;
 ok(created.traineeName === 'TEST SEAFARER ONE', 'trainee name upper-cased');
 ok(created.uniqueNumber === n1 && created.status === 'valid', 'defaults + unique number applied');
 ok(created.documentUrl && created.documentName === `${baseCert.certificateId}.pdf`, 'auto-generated PDF attached');
+ok(seeded.find((c) => c.uniqueNumber === '32625474824291')?.nationality === 'INDIAN', 'seeded certificate carries nationality');
+ok(typeof created.nationality === 'string', 'nationality field present (defaults to empty)');
 res = await call('GET', `/verify/${n1}/document`, { raw: true });
 const generatedBuf = Buffer.from(await res.arrayBuffer());
 ok(res.status === 200 && generatedBuf.subarray(0, 5).toString() === '%PDF-', 'generated PDF retrievable publicly');

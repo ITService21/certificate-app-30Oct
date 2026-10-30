@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { getPublicUrl } from '../../api';
+import { certificateUrl } from '../../api';
 import { Certificate, CertificateStatus } from '../../types';
 import {
   Search,
@@ -70,7 +70,7 @@ export const CertificatesListView: React.FC = () => {
   }, [certificates, search, statusFilter, courseFilter]);
 
   const handleCopyLink = (uniqueNum: string) => {
-    const link = `${getPublicUrl()}/?verify=${uniqueNum}`;
+    const link = certificateUrl(uniqueNum);
     navigator.clipboard.writeText(link);
     setCopiedId(uniqueNum);
     showToast(`Verification link copied for ${uniqueNum}`, 'info');
@@ -481,6 +481,7 @@ const EditCertificateModal: React.FC<{
   const [traineeTitle, setTraineeTitle] = useState(certificate.traineeTitle);
   const [traineeName, setTraineeName] = useState(certificate.traineeName);
   const [passportNumber, setPassportNumber] = useState(certificate.passportNumber);
+  const [nationality, setNationality] = useState(certificate.nationality ?? '');
   const [courseTitle, setCourseTitle] = useState(certificate.courseTitle);
   const [stcwRegulation, setStcwRegulation] = useState(certificate.stcwRegulation);
   const [status, setStatus] = useState<CertificateStatus>(certificate.status);
@@ -506,6 +507,7 @@ const EditCertificateModal: React.FC<{
       traineeTitle,
       traineeName: traineeName.trim().toUpperCase(),
       passportNumber: passportNumber.trim(),
+      nationality: nationality.trim().toUpperCase(),
       courseTitle,
       stcwRegulation,
       status,
@@ -572,6 +574,16 @@ const EditCertificateModal: React.FC<{
                 value={passportNumber}
                 onChange={(e) => setPassportNumber(e.target.value)}
                 className="w-full h-9 px-2 font-mono rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1A2644] uppercase"
+              />
+            </div>
+
+            <div className="sm:col-span-4">
+              <label className="block font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">Nationality</label>
+              <input
+                type="text"
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                className="w-full h-9 px-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1A2644] uppercase"
               />
             </div>
           </div>

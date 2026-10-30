@@ -42,7 +42,7 @@ Schema file: [`server/schema.sql`](server/schema.sql) (idempotent, applied by `n
 | Table | Purpose | Notes |
 |---|---|---|
 | `users` | Admin/issuer accounts | `password_hash` (bcrypt), `role` = `super_admin` \| `issuer`, `status` |
-| `certificates` | One row per certificate (all printed fields) | unique `unique_number` (14 digits) and `certificate_id`; status `valid/expiring/revoked/draft`; revocation audit columns; `scan_count`, `last_scanned_at` |
+| `certificates` | One row per certificate (all printed fields, incl. `nationality`) | unique `unique_number` (14 digits) and `certificate_id`; status `valid/expiring/revoked/draft`; revocation audit columns; `scan_count`, `last_scanned_at` |
 | `certificate_documents` | **The PDF/PNG/JPEG file itself** (`LONGBLOB`) | 1 per certificate (FK, `ON DELETE CASCADE`); `file_name`, `mime_type`, `size_bytes`, `sha256`, `is_generated` (server-made vs uploaded) |
 | `scan_logs` | Every public verification | real IP, device (from User-Agent), method (`qr_scan`/`number_lookup`), suspicious flag for unknown numbers |
 | `portal_settings` | Branding/config key → JSON value | edited from Admin → Settings |
@@ -81,7 +81,7 @@ mysql -uroot -e "CREATE DATABASE certverify CHARACTER SET utf8mb4;
   GRANT ALL ON certverify.* TO 'certverify'@'localhost';"
 
 # 2. App
-cd Piweb
+cd Certificate-app-30Oct26     # the folder that contains package.json
 cp .env.example .env     # set DB_*, JWT_SECRET, PUBLIC_URL=http://localhost:3000, ALLOW_DEMO_RESET=true
 npm install
 npm run db:init          # create tables
@@ -98,6 +98,12 @@ To scan QR codes from a phone in dev, set `PUBLIC_URL=http://<your-LAN-IP>:3000`
 
 > **Port note:** the API defaults to **4100**. If something else uses it, change `PORT` in `.env` and `API_URL` for Vite (`API_URL=http://localhost:PORT npm run dev`).
 
+### The QR link and the public page
+- Every certificate PDF carries a QR that encodes `${PUBLIC_URL}/certificate/<14-digit number>` (e.g. `https://browser.seafarersctc.app/certificate/32625474824291`).
+- That page shows only: Number Certificate, Participant, Identity (passport), Nationality, Issued Date, Due Date and a **View Certificate** button (opens the stored PDF). Revoked/expired certificates also get a red notice.
+- The generated PDF mirrors the official CTC layout (logos, signature, QR bottom-right). Logos/signature live in `server/assets/` and are read at runtime from the project root, so the service's `WorkingDirectory` must be the app folder.
+- Existing PDFs keep the QR they were created with. After changing `PUBLIC_URL` or the layout run `npm run pdf:regenerate` (uploaded files are never touched). See [REDEPLOY.md](REDEPLOY.md).
+
 ### Tests
 ```bash
 # API on :4100 started with:  LOGIN_RATE_MAX=1000 ALLOW_DEMO_RESET=true npm run server
@@ -110,17 +116,16 @@ npm run test:ui      # 36 checks in real Chrome (puppeteer-core): public flows, 
 
 ## 5. Deploying on a Hostinger VPS
 
-Assumptions: Ubuntu 22.04/24.04 VPS (KVM 1 is enough), new domain `example.com`, deploy user `deploy`.
+Assumptions: Ubuntu 22.04/24.04 VPS (KVM 1 is enough), the portal on the sub-domain `browser.seafarersctc.app` (the QR codes point here), deploy user `deploy`.
 
 ### 5.1 DNS
 hPanel → VPS → note the **IPv4**. At the domain's DNS add:
 
 | Type | Name | Value | TTL |
 |---|---|---|---|
-| A | `@` | `<VPS_IPV4>` | 300 |
-| A | `www` | `<VPS_IPV4>` | 300 |
+| A | `browser` | `<VPS_IPV4>` | 300 |
 
-Remove parking records. Check: `dig +short example.com` returns the VPS IP.
+(The apex `seafarersctc.app` is untouched, so any existing site there keeps working.) Check: `dig +short browser.seafarersctc.app` returns the VPS IP.
 
 ### 5.2 Server hardening
 ```bash
@@ -179,7 +184,7 @@ DB_USER=certverify
 DB_PASSWORD=<the password from 5.4>
 DB_NAME=certverify
 JWT_SECRET=<output of: openssl rand -hex 48>
-PUBLIC_URL=https://example.com          # ← QR codes on every generated PDF point here
+PUBLIC_URL=https://browser.seafarersctc.app   # ← QR codes on every generated PDF point here (no trailing slash)
 ALLOW_DEMO_RESET=false
 ```
 ```bash
@@ -224,7 +229,7 @@ journalctl -u certverify -f              # logs
 server {
     listen 80;
     listen [::]:80;
-    server_name example.com www.example.com;
+    server_name browser.seafarersctc.app;
 
     client_max_body_size 12m;                       # uploads are capped at 10 MB by the API
 
@@ -252,7 +257,7 @@ The app trusts exactly one proxy hop (`trust proxy 1`), which matches this setup
 ### 5.8 HTTPS
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d example.com -d www.example.com --redirect --agree-tos -m you@example.com --no-eff-email
+sudo certbot --nginx -d browser.seafarersctc.app --redirect --agree-tos -m you@example.com --no-eff-email
 sudo certbot renew --dry-run
 ```
 HTTPS is mandatory: the camera QR scanner is blocked by browsers on plain HTTP.
@@ -273,10 +278,10 @@ If you move to many thousands of large files, consider object storage for PDFs; 
 
 ## 6. Go-live checklist
 
-- [ ] `https://example.com` loads with a valid padlock; `http://` redirects to `https://`
-- [ ] `curl https://example.com/api/health` → `{"ok":true}`
+- [ ] `https://browser.seafarersctc.app` loads with a valid padlock; `http://` redirects to `https://`
+- [ ] `curl https://browser.seafarersctc.app/api/health` → `{"ok":true}`
 - [ ] Sign in with the admin you created with `admin:create`
-- [ ] Add a certificate (with and without a PDF upload); open its **Verification URL** – it must start with `https://example.com/`
+- [ ] Add a certificate (with and without a PDF upload); open its **Verification URL** – it must look like `https://browser.seafarersctc.app/certificate/<14-digit number>`
 - [ ] Scan the QR from the downloaded PDF with a phone → lands on the verify page
 - [ ] Admin → Dashboard → "Recent Verification Scans" shows your phone's real IP and device
 - [ ] `ALLOW_DEMO_RESET=false` and no demo users exist (`SELECT email FROM users;`)
@@ -301,7 +306,10 @@ Rollback: `git checkout <previous-tag>`, `npm ci && npm run build && sudo system
 
 ## 8. API reference (summary)
 
-Public
+Public pages (SPA)
+- `/certificate/<number>` – the page a QR scan opens (minimal "QR Validity Query" card + View Certificate). The old `/?verify=<number>` links still work.
+
+Public API
 - `GET  /api/verify/:id?method=qr_scan|number_lookup` – by 14-digit number or certificate ID (logs a scan)
 - `GET  /api/verify/:uniqueNumber/document[?download=1]` – stored PDF/image
 - `GET  /api/search?q=` – name or course (min 2 chars, max 50 results)
@@ -328,7 +336,7 @@ Admin (Bearer token)
 - **Scan location** is not resolved (stored as "Unknown"); add a GeoIP lookup (e.g. MaxMind) if the dashboard needs cities/countries.
 - **No change-password / forgot-password UI** (API exists for change; reset is via `npm run admin:create`, which also resets an existing admin's password).
 - **Uploaded PDFs are not parsed:** the number/ID printed on an uploaded file isn't checked against the form fields.
-- **The in-page camera scanner** ("Scan QR" button) only shows a camera preview plus demo "simulated scan" buttons; it does not decode QR codes. Real scanning works with the phone's own camera/QR app, which opens the `?verify=` link. Adding a decoder (e.g. `jsqr` or the `BarcodeDetector` API) would make the button functional.
+- **The in-page camera scanner** ("Scan QR" button) only shows a camera preview plus demo "simulated scan" buttons; it does not decode QR codes. Real scanning works with the phone's own camera/QR app, which opens the `/certificate/<number>` link. Adding a decoder (e.g. `jsqr` or the `BarcodeDetector` API) would make the button functional.
 - Rate limiting is in-memory (single process). Behind several Node instances, move it to Nginx (`limit_req`) or Redis.
 - Verified against MariaDB 12.1 locally; the schema sticks to the MySQL 8 / MariaDB common subset. On your VPS, run `npm run db:init` and the API test-suite (against a scratch database) once to confirm on your exact MySQL version.
 

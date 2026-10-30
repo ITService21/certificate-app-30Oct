@@ -46,6 +46,7 @@ export function toCertificate(r: any): Certificate {
     traineeTitle: r.trainee_title,
     traineeName: r.trainee_name,
     passportNumber: r.passport_number,
+    nationality: r.nationality ?? '',
     courseTitle: r.course_title,
     stcwRegulation: r.stcw_regulation,
     approvalResolution: r.approval_resolution,

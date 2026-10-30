@@ -22,10 +22,10 @@ import { SettingsView } from './components/admin/SettingsView';
 const MainContent: React.FC = () => {
   const { currentView, openCertificateById, currentUser, loading } = useApp();
 
-  // Check URL parameters for direct verification links (e.g. ?verify=32625474824291)
+  // Direct verification links: /certificate/32625474824291 (printed in the QR) and the legacy ?verify=32625474824291
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const verifyId = params.get('verify');
+    const fromPath = /^\/certificate\/([^/?#]+)/.exec(window.location.pathname);
+    const verifyId = fromPath ? decodeURIComponent(fromPath[1]) : new URLSearchParams(window.location.search).get('verify');
     if (verifyId) {
       openCertificateById(verifyId, 'qr_scan');
     }
@@ -50,6 +50,9 @@ const MainContent: React.FC = () => {
     );
   }
 
+  // QR landing page is a bare card: no site header/footer
+  if (currentView === 'cert_details') return <CertificateDetails />;
+
   // Render Public or Login View
   return (
     <div className="flex-1 flex flex-col" aria-busy={loading}>
@@ -58,10 +61,22 @@ const MainContent: React.FC = () => {
       )}
       {currentView === 'verify_home' && <VerifyHome />}
       {currentView === 'search_results' && <SearchResults />}
-      {currentView === 'cert_details' && <CertificateDetails />}
       {currentView === 'invalid_cert' && <InvalidCertificate />}
       {currentView === 'admin_login' && <AdminLogin />}
     </div>
+  );
+};
+
+/** Header/footer wrap everything except the minimal QR landing page. */
+const Shell: React.FC = () => {
+  const { currentView } = useApp();
+  const bare = currentView === 'cert_details';
+  return (
+    <>
+      {!bare && <Header />}
+      <MainContent />
+      {!bare && <Footer />}
+    </>
   );
 };
 
@@ -69,9 +84,7 @@ export default function App() {
   return (
     <AppProvider>
       <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 transition-colors duration-150 selection:bg-[#0A7AC1]/20 selection:text-[#0B1F4B]">
-        <Header />
-        <MainContent />
-        <Footer />
+        <Shell />
         <ToastContainer />
       </div>
     </AppProvider>

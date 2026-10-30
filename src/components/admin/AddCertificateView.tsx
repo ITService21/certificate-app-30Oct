@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { getPublicUrl } from '../../api';
+import { certificateUrl } from '../../api';
 import { Certificate } from '../../types';
 import {
   Upload,
@@ -42,6 +42,7 @@ export const AddCertificateView: React.FC = () => {
   const [traineeTitle, setTraineeTitle] = useState<'Mr.' | 'Ms.' | 'Capt.' | 'Eng.' | 'Dr.'>('Mr.');
   const [traineeName, setTraineeName] = useState('');
   const [passportNumber, setPassportNumber] = useState('');
+  const [nationality, setNationality] = useState('');
 
   // Section 4: Course
   const [courseTitle, setCourseTitle] = useState('Proficiency in Survival Craft and Rescue Boats Other Than Fast Rescue Boats');
@@ -141,6 +142,7 @@ export const AddCertificateView: React.FC = () => {
       traineeTitle,
       traineeName: traineeName.trim().toUpperCase(),
       passportNumber: passportNumber.trim() || 'N/A',
+      nationality: nationality.trim().toUpperCase(),
       courseTitle,
       stcwRegulation,
       approvalResolution,
@@ -404,6 +406,19 @@ export const AddCertificateView: React.FC = () => {
                 onChange={(e) => setPassportNumber(e.target.value)}
                 placeholder="e.g. Z6045152"
                 className="w-full h-10 px-3 text-xs font-mono tnum rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1A2644] text-slate-900 dark:text-white uppercase"
+              />
+            </div>
+
+            <div className="sm:col-span-4">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+                Nationality
+              </label>
+              <input
+                type="text"
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                placeholder="e.g. INDIAN"
+                className="w-full h-10 px-3 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1A2644] text-slate-900 dark:text-white uppercase"
               />
             </div>
           </div>
@@ -676,7 +691,7 @@ const PublishedSuccessModal: React.FC<{
   onViewDetails: () => void;
 }> = ({ certificate, onClose, onViewDetails }) => {
   const [copied, setCopied] = useState(false);
-  const verifyLink = `${getPublicUrl()}/?verify=${certificate.uniqueNumber}`;
+  const verifyLink = certificateUrl(certificate.uniqueNumber);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(verifyLink);

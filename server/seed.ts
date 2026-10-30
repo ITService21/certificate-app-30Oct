@@ -13,6 +13,7 @@ const CERT_COLUMNS = (c: any) => ({
   trainee_title: c.traineeTitle,
   trainee_name: c.traineeName,
   passport_number: c.passportNumber,
+  nationality: c.nationality ?? '',
   course_title: c.courseTitle,
   stcw_regulation: c.stcwRegulation,
   approval_resolution: c.approvalResolution,

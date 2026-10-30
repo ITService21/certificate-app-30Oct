@@ -124,7 +124,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [scanLogs, setScanLogs] = useState<ScanLog[]>([]);
 
-  const [currentView, setCurrentView] = useState<AppView>('verify_home');
+  const [currentView, setCurrentView] = useState<AppView>(() =>
+    /^\/certificate\/[^/]/.test(window.location.pathname) ? 'cert_details' : 'verify_home',
+  );
+
+  // Leaving the QR landing page: drop /certificate/<n> from the address bar so a reload doesn't re-open it.
+  useEffect(() => {
+    if (currentView !== 'cert_details' && /^\/certificate\//.test(window.location.pathname)) {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [currentView]);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [nameSearchResults, setNameSearchResults] = useState<Certificate[]>([]);

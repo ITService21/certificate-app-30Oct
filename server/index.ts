@@ -38,6 +38,7 @@ const FIELDS: Record<string, Spec> = {
   traineeTitle: { col: 'trainee_title', kind: 'enum', values: ['Mr.', 'Ms.', 'Capt.', 'Eng.', 'Dr.'] },
   traineeName: { col: 'trainee_name', kind: 'str', max: 160, required: true },
   passportNumber: { col: 'passport_number', kind: 'str', max: 40 },
+  nationality: { col: 'nationality', kind: 'str', max: 60 },
   courseTitle: { col: 'course_title', kind: 'str', max: 255 },
   stcwRegulation: { col: 'stcw_regulation', kind: 'str', max: 400 },
   approvalResolution: { col: 'approval_resolution', kind: 'str', max: 160 },

@@ -23,6 +23,7 @@ export interface Certificate {
   traineeTitle: 'Mr.' | 'Ms.' | 'Capt.' | 'Eng.' | 'Dr.';
   traineeName: string; // e.g. 'ELBY MATHEW'
   passportNumber: string; // e.g. 'Z6045152'
+  nationality?: string; // e.g. 'INDIAN' (shown on the public QR page)
   
   // Course details
   courseTitle: string; // e.g. 'Proficiency in Survival Craft and Rescue Boats Other Than Fast Rescue Boats'

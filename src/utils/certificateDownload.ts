@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import { getPublicUrl, downloadDocument } from '../api';
+import { certificateUrl, downloadDocument } from '../api';
 import { Certificate } from '../types';
 
 /**
@@ -159,7 +159,7 @@ export async function downloadOfficialCertificate(cert: Certificate): Promise<vo
   // Bottom Right: Generate and embed real QR Code
   try {
     const qrDataUrl = await QRCode.toDataURL(
-      `${getPublicUrl()}/?verify=${cert.uniqueNumber}`,
+      certificateUrl(cert.uniqueNumber),
       { width: 280, margin: 1, color: { dark: '#0B1F4B', light: '#FFFFFF' } }
     );
     const qrImg = new Image();

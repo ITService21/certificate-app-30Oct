@@ -14,6 +14,7 @@
     "db:seed": "tsx server/seed-cli.ts",
     "db:reseed": "tsx server/seed-cli.ts --reset",
     "admin:create": "tsx server/create-admin.ts",
+    "pdf:regenerate": "tsx server/regenerate-pdfs.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit && tsc --noEmit -p server/tsconfig.json",
     "test:api": "node tests/api.test.mjs",
