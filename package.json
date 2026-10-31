@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "server": "tsx watch server/index.ts",
+    "dev:all": "sh -c 'trap \"kill 0\" INT TERM EXIT; tsx watch server/index.ts & bun --bun vite --port=3000 --host=0.0.0.0; wait'",
     "build": "vite build && npm run build:server",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=server.js",
     "start": "NODE_ENV=production node server.js",
@@ -32,6 +33,7 @@
     "motion": "^12.23.24",
     "multer": "^2.5.0",
     "mysql2": "^3.24.6",
+    "pdfjs-dist": "4.10.38",
     "pdfkit": "^0.20.2",
     "qrcode": "^1.5.4",
     "react": "^19.0.1",

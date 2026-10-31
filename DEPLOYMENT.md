@@ -111,7 +111,10 @@ To scan QR codes from a phone in dev, set `PUBLIC_URL=http://<your-LAN-IP>:3000`
 ### The QR link and the public page
 - Every certificate PDF carries a QR that encodes `${PUBLIC_URL}/certificate/<14-digit number>` (e.g. `https://browser.seafarersctc.app/certificate/32625474824291`).
 - That page shows only: Number Certificate, Participant, Identity (passport), Nationality, Issued Date, Due Date and a **View Certificate** button (opens the stored PDF). Revoked/expired certificates also get a red notice.
-- The generated PDF mirrors the official CTC layout (logos, signature, QR bottom-right). Logos/signature live in `server/assets/` and are read at runtime from the project root, so the service's `WorkingDirectory` must be the app folder.
+- The generated PDF is an exact reproduction of the approved sample (REV. 2/2024): every position, font size, colour and the signature size come from the sample's own PDF. Fonts: Verdana (regular/bold/bold-italic), Arial Bold and Calibri (REV line). The fonts, logos, frame and signature live in `server/assets/` (fonts in `server/assets/fonts/`) and are read at runtime from the project root, so the service's `WorkingDirectory` must be the app folder.
+- **Font licence:** the Verdana and Arial files are Microsoft fonts copied from macOS. They are embedded in the PDFs (as the sample itself does). If your licence does not allow keeping them in the repository, replace the files in `server/assets/fonts/` with your licensed copies under the same names.
+- **Watermark:** the diagonal "File Copy - Not an Application" watermark is drawn behind the text when *Admin → Settings → Security Watermark* is on (default).
+- Held to is filled from *Held from* + the course duration (days, seeded per course, editable); validity is a 1–10 years selector (default 5); the printed "Valid until" and the public page's Due Date follow it.
 - Existing PDFs keep the QR they were created with. After changing `PUBLIC_URL` or the layout run `npm run pdf:regenerate` (uploaded files are never touched). See [REDEPLOY.md](REDEPLOY.md).
 
 ### Tests

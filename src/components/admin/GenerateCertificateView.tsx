@@ -1,3 +1,4 @@
+import { NationalitySelect } from './NationalitySelect';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api, certificateUrl, downloadDocument, openPdf } from '../../api';
@@ -14,6 +15,7 @@ interface CourseTemplate {
   approvalDate: string;
   approvalValidUntil: string;
   validityYears: number;
+  durationDays: number;
 }
 interface GeneratorConfig {
   courses: CourseTemplate[];
@@ -21,7 +23,14 @@ interface GeneratorConfig {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+const addDays = (iso: string, days: number) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
 const INPUT = 'w-full h-10 px-3 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1A2644] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0A7AC1]';
+const DISABLED = 'bg-slate-100! dark:bg-[#16213b]! text-slate-500! dark:text-slate-400! cursor-not-allowed';
 const LABEL = 'block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5 whitespace-nowrap overflow-hidden text-ellipsis';
 const CARD = 'p-5 sm:p-6 rounded-xl bg-white dark:bg-[#131F37] border border-slate-200 dark:border-slate-700 shadow-xs space-y-4';
 const CARD_TITLE = 'block text-xs font-bold uppercase tracking-wider text-[#0B1F4B] dark:text-sky-300 pb-1';
@@ -34,6 +43,8 @@ const blank = () => ({
   nationality: '',
   trainingStartDate: '',
   trainingEndDate: '',
+  durationDays: 5,
+  validityYears: 5,
   trainingMode: 'Presential' as Certificate['trainingMode'],
   trainingLocation: '',
   issueDate: today(),
@@ -68,14 +79,36 @@ export const GenerateCertificateView: React.FC = () => {
   useEffect(loadConfig, []);
 
   const course = config?.courses.find((c) => c.code === f.courseCode);
-  const validityYears = course?.validityYears ?? 5;
+  const validityYears = f.validityYears;
+
+  // "Held from" + course duration -> "Held to" (read-only); a new course resets duration and validity to its defaults.
+  const onCourse = (code: string) => {
+    const c = config?.courses.find((x) => x.code === code);
+    setF((p) => {
+      const days = c?.durationDays ?? p.durationDays;
+      return {
+        ...p,
+        courseCode: code,
+        durationDays: days,
+        validityYears: c?.validityYears ?? 5,
+        trainingEndDate: p.trainingStartDate ? addDays(p.trainingStartDate, days - 1) : p.trainingEndDate,
+      };
+    });
+  };
+  const onStart = (start: string) =>
+    setF((p) => ({ ...p, trainingStartDate: start, trainingEndDate: start ? addDays(start, p.durationDays - 1) : '' }));
+  const onDuration = (raw: string) => {
+    const days = Math.max(1, Math.min(60, Math.floor(Number(raw) || 1)));
+    setF((p) => ({ ...p, durationDays: days, trainingEndDate: p.trainingStartDate ? addDays(p.trainingStartDate, days - 1) : p.trainingEndDate }));
+  };
+  // Issue date is automatic: today, or the last training day if the course has not finished yet.
+  const issueDate = f.trainingEndDate && f.trainingEndDate > today() ? f.trainingEndDate : today();
   const expiry = useMemo(() => {
-    if (!f.issueDate) return '';
-    const d = new Date(`${f.issueDate}T00:00:00Z`);
+    const d = new Date(`${issueDate}T00:00:00Z`);
     d.setUTCFullYear(d.getUTCFullYear() + validityYears);
     d.setUTCDate(d.getUTCDate() - 1);
     return d.toISOString().slice(0, 10);
-  }, [f.issueDate, validityYears]);
+  }, [issueDate, validityYears]);
 
   const payload = () => ({
     courseCode: f.courseCode,
@@ -87,7 +120,8 @@ export const GenerateCertificateView: React.FC = () => {
     trainingEndDate: f.trainingEndDate,
     trainingMode: f.trainingMode,
     trainingLocation: f.trainingLocation.trim(),
-    issueDate: f.issueDate,
+    issueDate,
+    validityYears: f.validityYears,
     status: 'valid' as const,
     // optional overrides; empty values are ignored by the server
     certificateId: f.certificateId.trim(),
@@ -156,7 +190,7 @@ export const GenerateCertificateView: React.FC = () => {
       <form onSubmit={generate} className="space-y-5">
         <div className={CARD}>
           <span className={CARD_TITLE}>1. Course</span>
-          <select id="course" value={f.courseCode} onChange={(e) => set('courseCode', e.target.value)} className={INPUT} disabled={!config}>
+          <select id="course" value={f.courseCode} onChange={(e) => onCourse(e.target.value)} className={INPUT} disabled={!config}>
             <option value="">{config ? 'Select the course…' : configError ? 'Courses unavailable' : 'Loading courses…'}</option>
             {config?.courses.map((c) => <option key={c.code} value={c.code}>{c.title}</option>)}
           </select>
@@ -193,7 +227,7 @@ export const GenerateCertificateView: React.FC = () => {
             </div>
             <div>
               <label className={LABEL} htmlFor="nationality">Nationality</label>
-              <input id="nationality" className={`${INPUT} uppercase`} value={f.nationality} onChange={(e) => set('nationality', e.target.value)} placeholder="e.g. INDIAN" />
+              <NationalitySelect id="nationality" className={INPUT} value={f.nationality} onChange={(v) => set('nationality', v)} />
             </div>
           </div>
         </div>
@@ -203,11 +237,15 @@ export const GenerateCertificateView: React.FC = () => {
           <div className="grid gap-x-4 gap-y-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
             <div>
               <label className={LABEL} htmlFor="start">Held from *</label>
-              <input id="start" type="date" className={INPUT} value={f.trainingStartDate} onChange={(e) => set('trainingStartDate', e.target.value)} />
+              <input id="start" type="date" className={INPUT} value={f.trainingStartDate} onChange={(e) => onStart(e.target.value)} />
             </div>
             <div>
-              <label className={LABEL} htmlFor="end">Held to *</label>
-              <input id="end" type="date" className={INPUT} value={f.trainingEndDate} onChange={(e) => set('trainingEndDate', e.target.value)} />
+              <label className={LABEL} htmlFor="duration">Course duration (days)</label>
+              <input id="duration" type="number" min={1} max={60} className={INPUT} value={f.durationDays} onChange={(e) => onDuration(e.target.value)} />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor="end">Held to (automatic)</label>
+              <input id="end" type="date" disabled className={`${INPUT} ${DISABLED}`} value={f.trainingEndDate} readOnly />
             </div>
             <div>
               <label className={LABEL} htmlFor="mode">Course mode</label>
@@ -220,11 +258,17 @@ export const GenerateCertificateView: React.FC = () => {
               <input id="location" className={`${INPUT} uppercase`} value={f.trainingLocation} onChange={(e) => set('trainingLocation', e.target.value)} placeholder="e.g. AZERBAIJAN" />
             </div>
             <div>
-              <label className={LABEL} htmlFor="issue">Issue date</label>
-              <input id="issue" type="date" className={INPUT} value={f.issueDate} onChange={(e) => set('issueDate', e.target.value)} />
+              <label className={LABEL} htmlFor="issue">Issue date (automatic)</label>
+              <input id="issue" type="date" disabled className={`${INPUT} ${DISABLED}`} value={issueDate} readOnly />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor="validity">Certificate validity (years)</label>
+              <select id="validity" className={INPUT} value={f.validityYears} onChange={(e) => set('validityYears', Number(e.target.value))}>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((y) => <option key={y} value={y}>{y} {y === 1 ? 'year' : 'years'}{y === 5 ? ' (default)' : ''}</option>)}
+              </select>
             </div>
           </div>
-          {expiry && <p className="text-[11px] text-slate-500 dark:text-slate-400">Certificate valid until <strong>{expiry}</strong> ({validityYears} years)</p>}
+          {expiry && <p className="text-[11px] text-slate-500 dark:text-slate-400">Certificate valid until <strong>{expiry}</strong> ({validityYears} {validityYears === 1 ? 'year' : 'years'})</p>}
         </div>
 
         <div className={CARD}>

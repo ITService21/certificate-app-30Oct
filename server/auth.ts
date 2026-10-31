@@ -9,7 +9,7 @@ export interface AuthedRequest extends Request {
 }
 
 export const signToken = (user: User) =>
-  jwt.sign({ sub: user.id, role: user.role }, config.jwtSecret, { expiresIn: '8h' });
+  jwt.sign({ sub: user.id, role: user.role }, config.jwtSecret, { expiresIn: config.jwtExpiresIn as jwt.SignOptions['expiresIn'] });
 
 const readToken = (req: Request): string | null => {
   const h = req.headers.authorization;

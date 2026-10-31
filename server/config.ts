@@ -18,6 +18,7 @@ export const config = {
     database: process.env.DB_NAME || 'certverify',
   },
   jwtSecret: process.env.JWT_SECRET || 'dev-only-secret-change-me',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d', // admin login lasts 7 days
   publicUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, ''),
   seedPassword: process.env.SEED_PASSWORD || 'Admin@12345',
   allowDemoReset: process.env.ALLOW_DEMO_RESET === 'true',

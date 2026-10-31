@@ -15,6 +15,7 @@ for (const stmt of statements) await pool.query(stmt);
 // so older databases get them here (safe to re-run).
 const ADDED_COLUMNS: { table: string; column: string; ddl: string }[] = [
   { table: 'certificates', column: 'nationality', ddl: "VARCHAR(60) NOT NULL DEFAULT '' AFTER passport_number" },
+  { table: 'course_templates', column: 'duration_days', ddl: 'TINYINT UNSIGNED NOT NULL DEFAULT 5 AFTER validity_years' },
 ];
 for (const { table, column, ddl } of ADDED_COLUMNS) {
   const [rows] = await pool.query<any[]>(

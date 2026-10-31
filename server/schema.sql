@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS course_templates (
   approval_date        DATE NOT NULL,
   approval_valid_until DATE NOT NULL,
   validity_years       TINYINT UNSIGNED NOT NULL DEFAULT 5,
+  duration_days        TINYINT UNSIGNED NOT NULL DEFAULT 5,
   sort_order           SMALLINT NOT NULL DEFAULT 100,
   active               TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -121,4 +122,9 @@ CREATE TABLE IF NOT EXISTS certificate_defaults (
   signatory_name  VARCHAR(120) NOT NULL,
   signatory_title VARCHAR(160) NOT NULL,
   training_mode   ENUM('Presential','Online','Blended') NOT NULL DEFAULT 'Presential'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Nationality choices for the generator dropdown (seeded by `npm run db:init`).
+CREATE TABLE IF NOT EXISTS nationalities (
+  name VARCHAR(60) NOT NULL PRIMARY KEY
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

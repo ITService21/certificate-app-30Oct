@@ -15,6 +15,11 @@ First-time install is in [DEPLOYMENT.md](DEPLOYMENT.md).
 | 6 | Refreshing the admin panel keeps you on the same screen (`/admin`, `/admin/certificates`, …) instead of the public page | frontend rebuild only |
 | 7 | Public lookup is **exact match** only (full 14-digit number or full certificate ID); **Search by Name removed** (`/api/search` no longer exists) | rebuild + restart |
 | 8 | **Add Certificate form replaced by a Certificate Generator**: pick a course, enter only trainee details; company text, course wording, approval, signatory, ID, number, expiry and QR are automatic. Preview / Open / Download PDF | rebuild + restart + `db:init` |
+| 10 | PDF is now an **exact reproduction of the sample** (Verdana fonts, exact positions/colours/signature size, frame image) with the diagonal "File Copy - Not an Application" watermark (Settings toggle) | deploy `server/assets/` incl. `fonts/`, rebuild, `pdf:regenerate` |
+| 11 | Generator: *Course duration (days)* auto-fills *Held to*; *Certificate validity (years)* selector (default 5) | `db:init` adds `course_templates.duration_days` |
+| 12 | Public QR page re-measured to the reference (sizes/spacing), "Verify another certificate" link removed; **View Certificate now opens the certificate inline below the button** (no new tab) in a scrollable pdf.js viewer; PDF header rule and signature rule moved to match the original | `npm install` (new dependency `pdfjs-dist`), rebuild, `pdf:regenerate` |
+| 13 | Nationality is a searchable dropdown (192 nationalities, new table `nationalities`, endpoint `GET /api/admin/nationalities`); PDF frame now shows the full dotted border incl. bottom, watermark kept inside it, signature/lines re-positioned to match the original | `npm run db:init`, rebuild, restart, `pdf:regenerate` |
+| 14 | Admin login now lasts **7 days** (was 8 hours); optional `JWT_EXPIRES_IN` in `.env` (default `7d`). Watermark crosses the dotted border again | restart (and `pdf:regenerate`) |
 | 9 | Seeded reference data on production: new tables `course_templates` (7 courses incl. Ship's Cook) and `certificate_defaults` (signatory) | `npm run db:init` |
 
 Old printed/shared links `…/?verify=<number>` **keep working** as long as the old host still reaches this app.
@@ -54,11 +59,11 @@ ls -lh ~/backups | tail -2          # must not be 0 bytes
 cd /var/www/certverify/app           # the folder with package.json
 git status                           # anything modified on the server? note it / stash it
 git pull --ff-only                   # or: git fetch && git checkout <release-tag>
-ls server/assets                     # must list ctc-logo.png  uag-seal.jpg  signature.jpg
+ls server/assets server/assets/fonts   # must list ctc-logo.jpg uag-seal.jpg signature.jpg frame.png and fonts/ (Verdana*.ttf, Arial-Bold.ttf, Calibri-REV.ttf)
 node -v                              # must be ≥ 20.19
 npm ci
 ```
-If you deploy by copying files instead of git, copy the whole project **including `server/assets/` and `public/ctc-logo.png`** (not `node_modules`, `.env` or `dist`).
+If you deploy by copying files instead of git, copy the whole project **including `server/assets/` (with `fonts/`), `public/ctc-logo.png` and `public/eye-open.png`** (not `node_modules`, `.env` or `dist`).
 
 ## 4. Update `.env`
 
@@ -166,7 +171,7 @@ npm ci && npm run build && sudo systemctl restart certverify
 | Symptom | Cause / fix |
 |---|---|
 | QR opens the wrong host | `PUBLIC_URL` wrong when the PDF was made → fix `.env`, restart, `npm run pdf:regenerate` |
-| `ENOENT … server/assets/ctc-logo.png` on create/regenerate | `server/assets/` not deployed, or the service `WorkingDirectory` isn't the app folder |
+| `ENOENT … server/assets/fonts/Verdana.ttf` (or another asset) on create/regenerate | `server/assets/` not deployed, or the service `WorkingDirectory` isn't the app folder |
 | `Unknown column 'nationality'` | `npm run db:init` was skipped |
 | New page shows the old site header / old layout | Browser cache, or `npm run build` skipped → rebuild and hard-refresh |
 | `/certificate/<n>` returns 404 from Nginx | `location /` must proxy everything to Node (SPA fallback lives in the app) |

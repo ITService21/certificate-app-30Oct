@@ -150,6 +150,7 @@ async function resolveInput(db: Pool | PoolConnection, data: any): Promise<any> 
       approvalAuthority: t.approval_authority, approvalDate: t.approval_date, approvalValidUntil: t.approval_valid_until,
       validityYears: t.validity_years,
     };
+    template.__durationDays = t.duration_days;
   }
   const merged = {
     ...DEFAULTS(),
@@ -157,6 +158,14 @@ async function resolveInput(db: Pool | PoolConnection, data: any): Promise<any> 
     ...template,
     ...clean(data),
   } as any;
+  const durationDays = Number(data.durationDays ?? template.__durationDays ?? 0);
+  delete merged.__durationDays;
+  delete merged.durationDays;
+  if (!data.trainingEndDate && /^\d{4}-\d{2}-\d{2}$/.test(String(data.trainingStartDate)) && durationDays >= 1) {
+    const d = new Date(`${data.trainingStartDate}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + durationDays - 1);
+    merged.trainingEndDate = d.toISOString().slice(0, 10);
+  }
   if (!data.expiryDate && /^\d{4}-\d{2}-\d{2}$/.test(String(merged.issueDate)) && !Number.isNaN(Date.parse(merged.issueDate))) {
     const d = new Date(`${merged.issueDate}T00:00:00Z`);
     d.setUTCFullYear(d.getUTCFullYear() + Number(merged.validityYears || 5));
@@ -343,6 +352,11 @@ admin.post('/certificates', upload.single('file'), ah(async (req: AuthedRequest,
 }));
 
 // What the generator form needs: course templates + the values that are the same on every certificate.
+admin.get('/nationalities', ah(async (_req, res) => {
+  const [rows] = await pool.query<any[]>('SELECT name FROM nationalities ORDER BY name');
+  res.json(rows.map((r) => r.name));
+}));
+
 admin.get('/generator-config', ah(async (_req, res) => {
   const [courses] = await pool.query<any[]>('SELECT * FROM course_templates WHERE active = 1 ORDER BY sort_order, title');
   const [defRows] = await pool.query<any[]>('SELECT * FROM certificate_defaults WHERE id = 1');
@@ -351,6 +365,7 @@ admin.get('/generator-config', ah(async (_req, res) => {
     courses: courses.map((c) => ({
       code: c.code, title: c.title, stcwRegulation: c.stcw_regulation, approvalResolution: c.approval_resolution,
       approvalAuthority: c.approval_authority, approvalDate: c.approval_date, approvalValidUntil: c.approval_valid_until, validityYears: c.validity_years,
+      durationDays: c.duration_days,
     })),
     defaults: def
       ? { signatoryName: def.signatory_name, signatoryTitle: def.signatory_title, trainingMode: def.training_mode }
