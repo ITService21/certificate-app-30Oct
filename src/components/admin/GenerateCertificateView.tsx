@@ -226,7 +226,7 @@ export const GenerateCertificateView: React.FC = () => {
               <input id="passport" className={`${INPUT} uppercase font-mono`} value={f.passportNumber} onChange={(e) => set('passportNumber', e.target.value)} placeholder="e.g. Z4326490" />
             </div>
             <div>
-              <label className={LABEL} htmlFor="nationality">Nationality</label>
+              <label className={LABEL} htmlFor="nationality">Nacionality</label>
               <NationalitySelect id="nationality" className={INPUT} value={f.nationality} onChange={(v) => set('nationality', v)} />
             </div>
           </div>

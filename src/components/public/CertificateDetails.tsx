@@ -31,7 +31,7 @@ export const CertificateDetails: React.FC = () => {
     ['Number Certificate', cert.certificateId],
     ['Participant', cert.traineeName],
     ['Identity', cert.passportNumber],
-    ['Nationality', cert.nationality || 'N/A'],
+    ['Nacionality', cert.nationality || 'N/A'],
     ['Issued Date', cert.issueDate],
     ['Due Date', cert.expiryDate],
   ];

@@ -48,14 +48,14 @@ export const NationalitySelect: React.FC<Props> = ({ id, value, onChange, classN
         type="button" id={id} className={`${className} text-left flex items-center justify-between`}
         aria-haspopup="listbox" aria-expanded={open} onClick={() => { setOpen((o) => !o); setActive(0); }}
       >
-        <span className={value ? 'uppercase' : 'text-slate-400'}>{value || 'Select nationality'}</span>
+        <span className={value ? 'uppercase' : 'text-slate-400'}>{value || 'Select nacionality'}</span>
         <span aria-hidden className="text-slate-400 text-xs">▾</span>
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1A2644] shadow-lg">
           <input
             autoFocus value={query} onChange={(e) => { setQuery(e.target.value); setActive(0); }} onKeyDown={onKey}
-            placeholder="Search country…" aria-label="Search nationality"
+            placeholder="Search country…" aria-label="Search nacionality"
             className="w-full h-9 px-3 text-sm border-b border-slate-200 dark:border-slate-600 bg-transparent focus:outline-hidden"
           />
           <ul role="listbox" className="max-h-56 overflow-auto py-1 text-sm">

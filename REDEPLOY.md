@@ -18,7 +18,7 @@ First-time install is in [DEPLOYMENT.md](DEPLOYMENT.md).
 | 10 | PDF is now an **exact reproduction of the sample** (Verdana fonts, exact positions/colours/signature size, frame image) with the diagonal "File Copy - Not an Application" watermark (Settings toggle) | deploy `server/assets/` incl. `fonts/`, rebuild, `pdf:regenerate` |
 | 11 | Generator: *Course duration (days)* auto-fills *Held to*; *Certificate validity (years)* selector (default 5) | `db:init` adds `course_templates.duration_days` |
 | 12 | Public QR page re-measured to the reference (sizes/spacing), "Verify another certificate" link removed; **View Certificate now opens the certificate inline below the button** (no new tab) in a scrollable pdf.js viewer; PDF header rule and signature rule moved to match the original | `npm install` (new dependency `pdfjs-dist`), rebuild, `pdf:regenerate` |
-| 13 | Nationality is a searchable dropdown (192 nationalities, new table `nationalities`, endpoint `GET /api/admin/nationalities`); PDF frame now shows the full dotted border incl. bottom, watermark kept inside it, signature/lines re-positioned to match the original | `npm run db:init`, rebuild, restart, `pdf:regenerate` |
+| 13 | Nacionality is a searchable dropdown (192 nationalities, new table `nationalities`, endpoint `GET /api/admin/nationalities`); PDF frame now shows the full dotted border incl. bottom, watermark kept inside it, signature/lines re-positioned to match the original | `npm run db:init`, rebuild, restart, `pdf:regenerate` |
 | 14 | Admin login now lasts **7 days** (was 8 hours); optional `JWT_EXPIRES_IN` in `.env` (default `7d`). Watermark crosses the dotted border again | restart (and `pdf:regenerate`) |
 | 9 | Seeded reference data on production: new tables `course_templates` (7 courses incl. Ship's Cook) and `certificate_defaults` (signatory) | `npm run db:init` |
 
@@ -132,7 +132,7 @@ Check the first lines of the output: `QR base URL = https://browser.seafarersctc
 ## 9b. Fill in nationality for existing certificates
 
 The new column is empty for old records (the public page shows `N/A`). Either:
-- Admin → Certificates → ✏️ Edit → *Nationality* (saving regenerates the PDF automatically), or
+- Admin → Certificates → ✏️ Edit → *Nacionality* (saving regenerates the PDF automatically), or
 - bulk, then re-run `npm run pdf:regenerate`:
   ```sql
   UPDATE certificates SET nationality = 'INDIAN' WHERE passport_number IN ('…');
@@ -141,7 +141,7 @@ The new column is empty for old records (the public page shows `N/A`). Either:
 ## 10. Verify (10 min)
 
 - [ ] `https://browser.seafarersctc.app/` loads with a padlock; `http://` redirects to `https://`
-- [ ] `https://browser.seafarersctc.app/certificate/<a real 14-digit number>` shows the **QR Validity Query** card: Number Certificate, Participant, Identity, Nationality, Issued Date, Due Date, *View Certificate* – and no header/footer
+- [ ] `https://browser.seafarersctc.app/certificate/<a real 14-digit number>` shows the **QR Validity Query** card: Number Certificate, Participant, Identity, Nacionality, Issued Date, Due Date, *View Certificate* – and no header/footer
 - [ ] *View Certificate* opens the PDF; it shows the new layout
 - [ ] Open a regenerated PDF and **scan its QR with a phone** → lands on the page above (not on an old domain)
 - [ ] Old link `https://<old-domain>/?verify=<number>` still opens the certificate (or redirects to the new host)

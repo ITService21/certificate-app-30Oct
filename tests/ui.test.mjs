@@ -67,7 +67,7 @@ await shot('02-details-valid');
 
 section('C. Minimal QR page: rows + View Certificate opens the stored PDF');
 t = await text();
-ok(['QR Validity Query', 'Number Certificate', 'Participant', 'Identity', 'Nationality', 'Issued Date', 'Due Date'].every((x) => t.includes(x)), 'shows only the six validity rows');
+ok(['QR Validity Query', 'Number Certificate', 'Participant', 'Identity', 'Nacionality', 'Issued Date', 'Due Date'].every((x) => t.includes(x)), 'shows only the six validity rows');
 ok(t.includes('INDIAN') && t.includes('Z6045152') && t.includes('2026-05-15'), 'row values (nationality, identity, issued date)');
 ok(!t.includes('Course') && !t.includes('Trainer') && !(await page.$('header')), 'no extra data, no site header');
 ok(!(await page.$('iframe')), 'certificate is hidden until View Certificate is pressed');
@@ -155,7 +155,7 @@ const fillGenerator = async ({ name, number, id }) => {
   await typeInto('#trainee-name', name);
   await typeInto('#passport', 'z4326490');
   await page.click('#nationality');
-  await page.type('input[aria-label="Search nationality"]', 'indi');
+  await page.type('input[aria-label="Search nacionality"]', 'indi');
   await clickText('li[role=option]', 'indian');
   await setInput('#start', '2026-03-02');
   await typeInto('#location', 'azerbaijan');

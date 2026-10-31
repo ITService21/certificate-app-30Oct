@@ -587,7 +587,7 @@ const EditCertificateModal: React.FC<{
             </div>
 
             <div className="sm:col-span-4">
-              <label className="block font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">Nationality</label>
+              <label className="block font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">Nacionality</label>
               <NationalitySelect value={nationality} onChange={setNationality} className="w-full h-9 px-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1A2644]" />
             </div>
           </div>
