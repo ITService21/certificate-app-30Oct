@@ -109,11 +109,19 @@ function validateFields(input: any, keys: string[]): Record<string, string | num
   return out;
 }
 
+/** Numbering starts here: the first certificate issued gets these values, then counts up. */
+const FIRST_UNIQUE_NUMBER = 37252549101754n;
+const UNIQUE_NUMBER_WINDOW = 10n ** 9n;
+const FIRST_CERTIFICATE_SEQ = 1131;
+
 async function newUniqueNumber(db: Pool | PoolConnection): Promise<string> {
-  for (let i = 0; i < 10; i++) {
-    const n = String(Math.floor(10 ** 13 + Math.random() * 9 * 10 ** 13));
-    const [r] = await db.query<any[]>('SELECT 1 FROM certificates WHERE unique_number = ?', [n]);
-    if (!r.length) return n;
+  const [rows] = await db.query<any[]>('SELECT MAX(unique_number) AS m FROM certificates WHERE unique_number BETWEEN ? AND ?', [
+    String(FIRST_UNIQUE_NUMBER), String(FIRST_UNIQUE_NUMBER + UNIQUE_NUMBER_WINDOW),
+  ]);
+  let n = rows[0]?.m ? BigInt(rows[0].m) + 1n : FIRST_UNIQUE_NUMBER;
+  for (let i = 0; i < 10; i++, n++) {
+    const [r] = await db.query<any[]>('SELECT 1 FROM certificates WHERE unique_number = ?', [String(n)]);
+    if (!r.length) return String(n);
   }
   throw new HttpError(500, 'Could not allocate a unique number');
 }
@@ -125,11 +133,11 @@ async function fetchCertificate(db: Pool | PoolConnection, where: string, params
 
 const clean = (data: any) => Object.fromEntries(Object.entries(data).filter(([, v]) => v !== '' && v != null));
 
-/** Next free "UAG-TC-<yy>-<CODE>-<nnnnn>" for that course and year. */
+/** Next free "UAG-TC-<yy>-<CODE>-<nnnnn>" for that course and year; the count starts at 01131. */
 async function nextCertificateId(db: Pool | PoolConnection, code: string, issueDate: string): Promise<string> {
   const prefix = `UAG-TC-${issueDate.slice(2, 4)}-${code}-`;
   const [rows] = await db.query<any[]>('SELECT certificate_id FROM certificates WHERE certificate_id LIKE ?', [`${prefix}%`]);
-  const max = rows.reduce((m, r) => Math.max(m, Number(String(r.certificate_id).slice(prefix.length)) || 0), 0);
+  const max = rows.reduce((m, r) => Math.max(m, Number(String(r.certificate_id).slice(prefix.length)) || 0), FIRST_CERTIFICATE_SEQ - 1);
   return `${prefix}${String(max + 1).padStart(5, '0')}`;
 }
 
