@@ -150,8 +150,10 @@ const setInput = (sel, val) => page.$eval(sel, (el, v) => {
   el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
 }, val);
 const fillGenerator = async ({ name, number, id }) => {
-  await page.waitForSelector('#course option[value="COOK"]');
-  await setInput('#course', 'COOK');
+  await page.waitForFunction(() => { const b = document.querySelector('#course'); return b && !b.disabled; });
+  await page.click('#course');
+  await page.type('input[aria-label="Search course"]', 'cook');
+  await clickText('li[role=option]', "ship's cook");
   await typeInto('#trainee-name', name);
   await typeInto('#passport', 'z4326490');
   await page.click('#nationality');

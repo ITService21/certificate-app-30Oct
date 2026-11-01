@@ -26,6 +26,7 @@ const VIEW_PATHS: Partial<Record<string, string>> = {
   admin_dashboard: '/admin',
   admin_certificates: '/admin/certificates',
   admin_add_cert: '/admin/add',
+  admin_courses: '/admin/courses',
   admin_users: '/admin/users',
   admin_settings: '/admin/settings',
 };
@@ -48,6 +49,7 @@ export type AppView =
   | 'admin_dashboard'
   | 'admin_certificates'
   | 'admin_add_cert'
+  | 'admin_courses'
   | 'admin_users'
   | 'admin_settings';
 

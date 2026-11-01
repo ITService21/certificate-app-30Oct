@@ -301,12 +301,12 @@ export const CertificatesListView: React.FC = () => {
                 <th className="py-2.5 px-3">Issue Date</th>
                 <th className="py-2.5 px-3">Expiry</th>
                 <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+                <th className="py-2.5 px-3 text-right sticky right-0 bg-slate-50 dark:bg-[#0E172A] shadow-[-6px_0_6px_-6px_rgba(15,23,42,0.18)]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredCertificates.map((cert) => (
-                <tr key={cert.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                <tr key={cert.id} className="group hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-3 font-mono tnum text-[#0A7AC1] dark:text-sky-300 font-bold whitespace-nowrap">
                     {cert.uniqueNumber}
                   </td>
@@ -331,7 +331,7 @@ export const CertificatesListView: React.FC = () => {
                   <td className="py-2.5 px-3 whitespace-nowrap">
                     {getStatusBadge(cert.status)}
                   </td>
-                  <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                  <td className="py-2.5 px-3 text-right whitespace-nowrap sticky right-0 bg-white dark:bg-[#131F37] group-hover:bg-slate-50 dark:group-hover:bg-[#182540] shadow-[-6px_0_6px_-6px_rgba(15,23,42,0.18)]">
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => openCertificateById(cert.uniqueNumber)}
@@ -355,14 +355,6 @@ export const CertificatesListView: React.FC = () => {
                         className="p-1 text-slate-400 hover:text-[#0A7AC1] dark:hover:text-white cursor-pointer"
                       >
                         <FileText className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        onClick={() => handleDownload(cert)}
-                        title="Download Certificate PDF"
-                        className="p-1 text-slate-400 hover:text-[#0A7AC1] dark:hover:text-white cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" />
                       </button>
 
                       <button
@@ -400,6 +392,14 @@ export const CertificatesListView: React.FC = () => {
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
+
+                      <button
+                        onClick={() => handleDownload(cert)}
+                        title="Download Certificate PDF"
+                        className="p-1 text-slate-400 hover:text-[#0A7AC1] dark:hover:text-white cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </td>
                 </tr>

@@ -287,7 +287,7 @@ app.get('/api/verify/:id', publicLimiter, ah(async (req, res) => {
 app.get('/api/verify/:uniqueNumber/document', publicLimiter, ah(async (req, res) => {
   const isStaff = hasValidToken(req);
   const [rows] = await pool.query<any[]>(
-    `SELECT d.file_name, d.mime_type, d.data FROM certificate_documents d
+    `SELECT c.id, d.file_name, d.mime_type, d.data, d.is_generated FROM certificate_documents d
      JOIN certificates c ON c.id = d.certificate_id
      WHERE c.unique_number = ?${isStaff ? '' : " AND c.status <> 'draft'"}`,
     [req.params.uniqueNumber],
@@ -295,10 +295,17 @@ app.get('/api/verify/:uniqueNumber/document', publicLimiter, ah(async (req, res)
   if (!rows.length) return res.status(404).json({ error: 'Document not found' });
   const d = rows[0];
   const safeName = String(d.file_name).replace(/[^\w.\- ]/g, '_');
+  let body: Buffer = d.data;
+  // The public on-screen view ("View Certificate") of a generated certificate carries the "File Copy" watermark; the
+  // download, the admin's own view and the stored PDF stay clean. Uploaded files are served as they are.
+  if (!req.query.download && !isStaff && d.is_generated) {
+    const cert = await fetchCertificate(pool, 'c.id = ?', [d.id]);
+    if (cert) body = await generateCertificatePdf(cert, baseUrlFor(req), { watermark: true });
+  }
   res.setHeader('Content-Type', d.mime_type);
   res.setHeader('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename="${safeName}"`);
   res.setHeader('Cache-Control', 'no-cache');
-  res.send(d.data);
+  res.send(body);
 }));
 
 // ================================= AUTH ==========================================
@@ -371,6 +378,82 @@ admin.get('/generator-config', ah(async (_req, res) => {
       ? { signatoryName: def.signatory_name, signatoryTitle: def.signatory_title, trainingMode: def.training_mode }
       : { signatoryName: 'Claudia Galeano', signatoryTitle: 'CTC General Manager', trainingMode: 'Presential' },
   });
+}));
+
+// ---- course management (Admin -> Courses, super admin only) ----------------------------------
+const toCourse = (c: any) => ({
+  code: c.code, title: c.title, stcwRegulation: c.stcw_regulation, approvalResolution: c.approval_resolution,
+  approvalAuthority: c.approval_authority, approvalDate: c.approval_date, approvalValidUntil: c.approval_valid_until,
+  validityYears: c.validity_years, durationDays: c.duration_days, sortOrder: c.sort_order, active: !!c.active,
+});
+
+function courseColumns(b: any, partial: boolean) {
+  const out: Record<string, unknown> = {};
+  const text = (key: string, col: string, label: string, max: number) => {
+    if (b[key] === undefined && partial) return;
+    const v = String(b[key] ?? '').trim();
+    if (!v) throw new HttpError(400, `${label} is required`);
+    if (v.length > max) throw new HttpError(400, `${label} is too long (max ${max} characters)`);
+    out[col] = v;
+  };
+  const date = (key: string, col: string, label: string) => {
+    if (b[key] === undefined && partial) return;
+    const v = String(b[key] ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v))) throw new HttpError(400, `${label} must be a valid date`);
+    out[col] = v;
+  };
+  const int = (key: string, col: string, label: string, min: number, max: number) => {
+    if (b[key] === undefined && partial) return;
+    const v = Number(b[key]);
+    if (!Number.isInteger(v) || v < min || v > max) throw new HttpError(400, `${label} must be a whole number from ${min} to ${max}`);
+    out[col] = v;
+  };
+  text('title', 'title', 'Course title', 255);
+  text('stcwRegulation', 'stcw_regulation', 'Regulation wording', 400);
+  text('approvalResolution', 'approval_resolution', 'Approval resolution', 160);
+  text('approvalAuthority', 'approval_authority', 'Approval authority', 255);
+  date('approvalDate', 'approval_date', 'Approval date');
+  date('approvalValidUntil', 'approval_valid_until', 'Approval valid until');
+  int('validityYears', 'validity_years', 'Certificate validity (years)', 1, 10);
+  int('durationDays', 'duration_days', 'Course duration (days)', 1, 60);
+  int('sortOrder', 'sort_order', 'Sort order', 0, 32000);
+  if (b.active !== undefined) out.active = b.active ? 1 : 0;
+  return out;
+}
+
+admin.get('/courses', requireSuperAdmin, ah(async (_req, res) => {
+  const [rows] = await pool.query<any[]>('SELECT * FROM course_templates ORDER BY sort_order, title');
+  res.json(rows.map(toCourse));
+}));
+
+admin.post('/courses', requireSuperAdmin, ah(async (req: AuthedRequest, res) => {
+  const code = String(req.body?.code ?? '').trim().toUpperCase();
+  if (!/^[A-Z0-9_-]{1,20}$/.test(code)) throw new HttpError(400, 'Code must be 1-20 letters, digits, - or _');
+  const cols = courseColumns({ sortOrder: 100, validityYears: 5, durationDays: 5, active: true, ...req.body }, false);
+  try {
+    await pool.query(`INSERT INTO course_templates (code, ${Object.keys(cols).join(', ')}) VALUES (?${Object.keys(cols).map(() => ', ?').join('')})`, [code, ...Object.values(cols)]);
+  } catch (e: any) {
+    if (e.code === 'ER_DUP_ENTRY') throw new HttpError(409, 'A course with this code already exists');
+    throw e;
+  }
+  const [rows] = await pool.query<any[]>('SELECT * FROM course_templates WHERE code = ?', [code]);
+  res.status(201).json(toCourse(rows[0]));
+}));
+
+admin.put('/courses/:code', requireSuperAdmin, ah(async (req: AuthedRequest, res) => {
+  const cols = courseColumns(req.body || {}, true);
+  if (!Object.keys(cols).length) throw new HttpError(400, 'Nothing to update');
+  const [r] = await pool.query<any>(`UPDATE course_templates SET ${Object.keys(cols).map((k) => `${k} = ?`).join(', ')} WHERE code = ?`, [...Object.values(cols), req.params.code]);
+  if (!r.affectedRows) throw new HttpError(404, 'Course not found');
+  const [rows] = await pool.query<any[]>('SELECT * FROM course_templates WHERE code = ?', [req.params.code]);
+  res.json(toCourse(rows[0]));
+}));
+
+// Certificates already issued keep their own printed wording, so deleting a course never changes them.
+admin.delete('/courses/:code', requireSuperAdmin, ah(async (req: AuthedRequest, res) => {
+  const [r] = await pool.query<any>('DELETE FROM course_templates WHERE code = ?', [req.params.code]);
+  if (!r.affectedRows) throw new HttpError(404, 'Course not found');
+  res.json({ ok: true });
 }));
 
 // Renders the official certificate PDF from form values without saving anything (Add Certificate -> Preview).

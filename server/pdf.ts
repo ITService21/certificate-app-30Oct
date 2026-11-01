@@ -183,9 +183,10 @@ const REG_MAX_WIDTH = 512;
 const SAMPLE_REG = 'According to Maritime Labor Convention, 2006 and Resolution ADM No. 068-2013, Regulation 3.2, Standard A3. and Guideline B3.2 of Maritime Labour Convention';
 
 export async function generateCertificatePdf(cert: Certificate, baseUrl: string, opts: { watermark?: boolean } = {}): Promise<Buffer> {
-  // Admin -> Settings -> "Security Watermark" switches the "File Copy" watermark on/off (default: on).
-  let showWatermark = opts.watermark;
-  if (showWatermark === undefined) {
+  // The "File Copy" watermark is only for the on-screen view on the public page (opts.watermark = true); stored and
+  // downloaded PDFs never carry it. Admin -> Settings -> "Security Watermark" can still switch it off there.
+  let showWatermark = opts.watermark === true;
+  if (showWatermark) {
     const [wm] = await pool.query<any[]>("SELECT config_value FROM portal_settings WHERE config_key = 'showWatermark'");
     showWatermark = !wm.length || JSON.parse(wm[0].config_value) !== false;
   }
@@ -295,7 +296,7 @@ export async function generateCertificatePdf(cert: Certificate, baseUrl: string,
   drawLine(LINES.fulfills, cert);
 
   // regulation text: wrapped like the sample (max width), each line centred on the sample's centres
-  const words = cert.stcwRegulation.trim().split(/\s+/);
+  const words = cert.stcwRegulation.replace(/\s*\n\s*/g, ' ').trim().split(/\s+/);
   const regLines: string[] = [];
   let cur = '';
   const REG_CS = [-0.0625, 0.017];
@@ -305,6 +306,11 @@ export async function generateCertificatePdf(cert: Certificate, baseUrl: string,
     if (cur && regW(`${cur} ${w}`) > REG_MAX_WIDTH) { regLines.push(cur); cur = w; } else cur = cur ? `${cur} ${w}` : w;
   }
   if (cur) regLines.push(cur);
+  // an explicit line break in the regulation text (Admin -> Courses) is kept as the line break
+  if (cert.stcwRegulation.includes('\n')) {
+    regLines.length = 0;
+    for (const part of cert.stcwRegulation.split('\n')) { const t = part.trim().replace(/\s+/g, ' '); if (t) regLines.push(t); }
+  }
   const sampleReg: string[] = [];
   { let sc = ''; for (const w of SAMPLE_REG.split(' ')) { if (sc && regW(`${sc} ${w}`) > REG_MAX_WIDTH) { sampleReg.push(sc); sc = w; } else sc = sc ? `${sc} ${w}` : w; } if (sc) sampleReg.push(sc); }
   regLines.slice(0, 3).forEach((t, i) => {

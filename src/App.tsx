@@ -15,6 +15,7 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { DashboardView } from './components/admin/DashboardView';
 import { CertificatesListView } from './components/admin/CertificatesListView';
 import { GenerateCertificateView } from './components/admin/GenerateCertificateView';
+import { CoursesView } from './components/admin/CoursesView';
 import { UsersRolesView } from './components/admin/UsersRolesView';
 import { SettingsView } from './components/admin/SettingsView';
 
@@ -46,6 +47,7 @@ const MainContent: React.FC = () => {
         {currentView === 'admin_dashboard' && <DashboardView />}
         {currentView === 'admin_certificates' && <CertificatesListView />}
         {currentView === 'admin_add_cert' && <GenerateCertificateView />}
+        {currentView === 'admin_courses' && <CoursesView />}
         {currentView === 'admin_users' && <UsersRolesView />}
         {currentView === 'admin_settings' && <SettingsView />}
       </AdminLayout>

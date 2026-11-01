@@ -123,10 +123,21 @@ npm run pdf:regenerate               # does it (≈ 1 s per 20 certificates; the
 ```
 Check the first lines of the output: `QR base URL = https://browser.seafarersctc.app`. If it prints anything else, stop and fix `PUBLIC_URL`.
 
+## 8b. Watermark and Courses (new behaviour)
+
+- The "File Copy - Not an Application" watermark is now added **only when the public page shows the certificate** ("View Certificate"). Stored PDFs, the Download button and the admin's own view are clean, so `npm run pdf:regenerate` (step 8) is **required** once to remove the watermark that older stored PDFs have baked in.
+- Courses are managed in **Admin → Courses** (Super Admin): add, edit, hide or delete. `npm run db:init` only seeds the 7 starter courses into an **empty** table; it never restores a deleted course or overwrites an edited one. The Generate Certificate course field is now a searchable list.
+
+- **Set the course list to the 8 official courses** (Ship's Cook, Survival Craft, Advanced Fire Fighting, Basic Training for Oil and Chemical Tanker Cargo Operations, Able Seafarer Deck, Able Seafarer Engine, Ratings Forming Part of an Engineering Watch / a Navigational Watch):
+  ```bash
+  npm run courses:sync     # safe to re-run
+  ```
+  It adds the missing courses, applies the official regulation wording to Survival Craft (only if still the old seeded text) and **removes the 4 retired first-seed courses (MFA, BRM, BST, ECDIS)**. Certificates already issued keep their printed wording. Courses the admin added or edited are never changed or removed. No rebuild or restart is needed. A line break (Enter) in a course's regulation wording is kept on the printed certificate.
+
 ## 9. Seeded course data & first-use notes
 
 - `db:init` (step 6) already created and filled the course templates and the default signatory on production. Check: `mysql -u certverify -p certverify -e "SELECT code, title FROM course_templates; SELECT * FROM certificate_defaults;"`.
-- The **approval validity printed on the certificates** ("Valid until June 12th, 2026" for the DGGM resolution) comes from the template. When the authority renews it, edit `approvalValidUntil`/`RESOLUTION` in `server/reference-data.ts` (constant `APPROVAL_VALID_UNTIL`), deploy, run `npm run db:init`. Certificates already issued keep the dates they were printed with.
+- The **approval validity printed on the certificates** ("Valid until June 12th, 2026" for the DGGM resolution) comes from the course. When the authority renews it, open **Admin → Courses → ✏️ Edit** and change *Approval valid until* (no deploy needed). Certificates already issued keep the dates they were printed with.
 - The automatic Certificate ID continues from the highest existing `UAG-TC-<yy>-<COURSE>-<nnnnn>` already in the database, so existing numbering (e.g. …-COOK-00661) is respected. IDs imported with a different pattern are ignored for the counter.
 
 ## 9b. Fill in nationality for existing certificates

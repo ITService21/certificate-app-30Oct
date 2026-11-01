@@ -1,4 +1,5 @@
 import { NationalitySelect } from './NationalitySelect';
+import { SearchableSelect } from './SearchableSelect';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api, certificateUrl, downloadDocument, openPdf } from '../../api';
@@ -190,10 +191,12 @@ export const GenerateCertificateView: React.FC = () => {
       <form onSubmit={generate} className="space-y-5">
         <div className={CARD}>
           <span className={CARD_TITLE}>1. Course</span>
-          <select id="course" value={f.courseCode} onChange={(e) => onCourse(e.target.value)} className={INPUT} disabled={!config}>
-            <option value="">{config ? 'Select the course…' : configError ? 'Courses unavailable' : 'Loading courses…'}</option>
-            {config?.courses.map((c) => <option key={c.code} value={c.code}>{c.title}</option>)}
-          </select>
+          <SearchableSelect
+            id="course" className={INPUT} value={f.courseCode} onChange={onCourse} disabled={!config}
+            options={(config?.courses ?? []).map((c) => ({ value: c.code, label: c.title }))}
+            placeholder={config ? 'Select the course…' : configError ? 'Courses unavailable' : 'Loading courses…'}
+            searchPlaceholder="Search course…" searchLabel="Search course"
+          />
           {configError && (
             <p role="alert" className="text-xs text-red-600 dark:text-red-400">
               {configError}{' '}
@@ -263,7 +266,7 @@ export const GenerateCertificateView: React.FC = () => {
             </div>
             <div>
               <label className={LABEL} htmlFor="validity">Certificate validity (years)</label>
-              <select id="validity" className={INPUT} value={f.validityYears} onChange={(e) => set('validityYears', Number(e.target.value))}>
+              <select id="validity" disabled className={`${INPUT} ${DISABLED}`} value={f.validityYears} onChange={(e) => set('validityYears', Number(e.target.value))}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((y) => <option key={y} value={y}>{y} {y === 1 ? 'year' : 'years'}{y === 5 ? ' (default)' : ''}</option>)}
               </select>
             </div>
