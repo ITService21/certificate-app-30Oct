@@ -113,6 +113,8 @@ function validateFields(input: any, keys: string[]): Record<string, string | num
 const FIRST_UNIQUE_NUMBER = 37252549101754n;
 const UNIQUE_NUMBER_WINDOW = 10n ** 9n;
 const FIRST_CERTIFICATE_SEQ = 1131;
+/** Course codes that print differently in the Certificate ID (all other courses print their own code). */
+const ID_CODES: Record<string, string> = { RFNW: 'RNW', RFEW: 'RNX' };
 
 async function newUniqueNumber(db: Pool | PoolConnection): Promise<string> {
   const [rows] = await db.query<any[]>('SELECT MAX(unique_number) AS m FROM certificates WHERE unique_number BETWEEN ? AND ?', [
@@ -135,7 +137,7 @@ const clean = (data: any) => Object.fromEntries(Object.entries(data).filter(([, 
 
 /** Next free "UAG-TC-<yy>-<CODE>-<nnnnn>" for that course and year; the count starts at 01131. */
 async function nextCertificateId(db: Pool | PoolConnection, code: string, issueDate: string): Promise<string> {
-  const prefix = `UAG-TC-${issueDate.slice(2, 4)}-${code}-`;
+  const prefix = `UAG-TC-${issueDate.slice(2, 4)}-${ID_CODES[code.toUpperCase()] ?? code}-`;
   const [rows] = await db.query<any[]>('SELECT certificate_id FROM certificates WHERE certificate_id LIKE ?', [`${prefix}%`]);
   const max = rows.reduce((m, r) => Math.max(m, Number(String(r.certificate_id).slice(prefix.length)) || 0), FIRST_CERTIFICATE_SEQ - 1);
   return `${prefix}${String(max + 1).padStart(5, '0')}`;
@@ -184,6 +186,7 @@ async function resolveInput(db: Pool | PoolConnection, data: any): Promise<any> 
   if (!data.expiryDate && /^\d{4}-\d{2}-\d{2}$/.test(String(merged.issueDate)) && !Number.isNaN(Date.parse(merged.issueDate))) {
     const d = new Date(`${merged.issueDate}T00:00:00Z`);
     d.setUTCFullYear(d.getUTCFullYear() + Number(merged.validityYears || 5));
+    d.setUTCDate(d.getUTCDate() - 1); // valid until = issue date + N years - 1 day (the last training day + N years)
     merged.expiryDate = d.toISOString().slice(0, 10);
   }
   if (!merged.certificateId) {

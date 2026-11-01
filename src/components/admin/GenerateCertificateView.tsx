@@ -107,10 +107,11 @@ export const GenerateCertificateView: React.FC = () => {
   };
   // Issue date is automatic: the day after the last training day (held 1-5 Nov -> issued 6 Nov); today until dates are set.
   const issueDate = f.trainingEndDate ? addDays(f.trainingEndDate, 1) : today();
-  // Valid until = issue date + validity years (issued 6 Nov 2026 -> valid until 6 Nov 2031).
+  // Valid until = issue date + validity years - 1 day (issued 6 Nov 2026 -> valid until 5 Nov 2031).
   const expiry = useMemo(() => {
     const d = new Date(`${issueDate}T00:00:00Z`);
     d.setUTCFullYear(d.getUTCFullYear() + validityYears);
+    d.setUTCDate(d.getUTCDate() - 1);
     return d.toISOString().slice(0, 10);
   }, [issueDate, validityYears]);
 
