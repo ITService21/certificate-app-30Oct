@@ -166,10 +166,16 @@ async function resolveInput(db: Pool | PoolConnection, data: any): Promise<any> 
     d.setUTCDate(d.getUTCDate() + durationDays - 1);
     merged.trainingEndDate = d.toISOString().slice(0, 10);
   }
+  // Issue date is the day after the last training day unless given; location is fixed.
+  if (!data.issueDate && /^\d{4}-\d{2}-\d{2}$/.test(String(merged.trainingEndDate))) {
+    const d = new Date(`${merged.trainingEndDate}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    merged.issueDate = d.toISOString().slice(0, 10);
+  }
+  merged.trainingLocation = 'AZERBAIJAN';
   if (!data.expiryDate && /^\d{4}-\d{2}-\d{2}$/.test(String(merged.issueDate)) && !Number.isNaN(Date.parse(merged.issueDate))) {
     const d = new Date(`${merged.issueDate}T00:00:00Z`);
     d.setUTCFullYear(d.getUTCFullYear() + Number(merged.validityYears || 5));
-    d.setUTCDate(d.getUTCDate() - 1);
     merged.expiryDate = d.toISOString().slice(0, 10);
   }
   if (!merged.certificateId) {

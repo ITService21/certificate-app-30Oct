@@ -152,7 +152,7 @@ const LINES: Record<string, Line> = {
   },
   validity: {
     y: 131.7, x0: 327.85, cs: -0.063,
-    segs: (c) => [seg(`(THIS CERTIFICATE IS VALID FOR ${NUMBER_WORDS[c.validityYears] ?? c.validityYears} (${c.validityYears}) YEAR ) `, 'V', 8, 1.049, { ul: [1.19, 0.5] })],
+    segs: (c) => [seg(`(THIS CERTIFICATE IS VALID FOR ${NUMBER_WORDS[c.validityYears] ?? c.validityYears} (${c.validityYears}) ${c.validityYears === 1 ? 'YEAR' : 'YEARS'}) `, 'V', 8, 1.049, { ul: [1.19, 0.5] })],
   },
   signName: { y: 42.5, x0: 355.65, segs: (c) => [seg(`${c.signatoryName} `, 'VB', 7.5, 1.046)] },
   signTitle: { y: 24.8, x0: 342.75, segs: (c) => [seg(c.signatoryTitle, 'AB', 9, 1)] },

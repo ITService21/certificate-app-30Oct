@@ -36,6 +36,9 @@ const LABEL = 'block text-xs font-bold uppercase tracking-wider text-slate-700 d
 const CARD = 'p-5 sm:p-6 rounded-xl bg-white dark:bg-[#131F37] border border-slate-200 dark:border-slate-700 shadow-xs space-y-4';
 const CARD_TITLE = 'block text-xs font-bold uppercase tracking-wider text-[#0B1F4B] dark:text-sky-300 pb-1';
 
+/** Every course is conducted here, so it is fixed rather than typed. */
+const TRAINING_LOCATION = 'AZERBAIJAN';
+
 const blank = () => ({
   courseCode: '',
   traineeTitle: 'Mr.' as Certificate['traineeTitle'],
@@ -47,7 +50,7 @@ const blank = () => ({
   durationDays: 5,
   validityYears: 5,
   trainingMode: 'Presential' as Certificate['trainingMode'],
-  trainingLocation: '',
+  trainingLocation: TRAINING_LOCATION,
   issueDate: today(),
   // advanced (blank = automatic / from template)
   certificateId: '',
@@ -102,12 +105,12 @@ export const GenerateCertificateView: React.FC = () => {
     const days = Math.max(1, Math.min(60, Math.floor(Number(raw) || 1)));
     setF((p) => ({ ...p, durationDays: days, trainingEndDate: p.trainingStartDate ? addDays(p.trainingStartDate, days - 1) : p.trainingEndDate }));
   };
-  // Issue date is automatic: today, or the last training day if the course has not finished yet.
-  const issueDate = f.trainingEndDate && f.trainingEndDate > today() ? f.trainingEndDate : today();
+  // Issue date is automatic: the day after the last training day (held 1-5 Nov -> issued 6 Nov); today until dates are set.
+  const issueDate = f.trainingEndDate ? addDays(f.trainingEndDate, 1) : today();
+  // Valid until = issue date + validity years (issued 6 Nov 2026 -> valid until 6 Nov 2031).
   const expiry = useMemo(() => {
     const d = new Date(`${issueDate}T00:00:00Z`);
     d.setUTCFullYear(d.getUTCFullYear() + validityYears);
-    d.setUTCDate(d.getUTCDate() - 1);
     return d.toISOString().slice(0, 10);
   }, [issueDate, validityYears]);
 
@@ -120,7 +123,7 @@ export const GenerateCertificateView: React.FC = () => {
     trainingStartDate: f.trainingStartDate,
     trainingEndDate: f.trainingEndDate,
     trainingMode: f.trainingMode,
-    trainingLocation: f.trainingLocation.trim(),
+    trainingLocation: TRAINING_LOCATION,
     issueDate,
     validityYears: f.validityYears,
     status: 'valid' as const,
@@ -139,7 +142,6 @@ export const GenerateCertificateView: React.FC = () => {
     if (!f.passportNumber.trim()) return 'Enter the passport number';
     if (!f.trainingStartDate || !f.trainingEndDate) return 'Enter the training start and end dates';
     if (f.trainingEndDate < f.trainingStartDate) return 'Training end date is before the start date';
-    if (!f.trainingLocation.trim()) return 'Enter where the training was conducted';
     if (f.uniqueNumber && f.uniqueNumber.replace(/\D/g, '').length !== 14) return 'The certificate number must be exactly 14 digits (or leave it blank)';
     return null;
   };
@@ -257,8 +259,8 @@ export const GenerateCertificateView: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className={LABEL} htmlFor="location">Conducted at *</label>
-              <input id="location" className={`${INPUT} uppercase`} value={f.trainingLocation} onChange={(e) => set('trainingLocation', e.target.value)} placeholder="e.g. AZERBAIJAN" />
+              <label className={LABEL} htmlFor="location">Conducted at</label>
+              <input id="location" disabled readOnly className={`${INPUT} ${DISABLED}`} value={TRAINING_LOCATION} />
             </div>
             <div>
               <label className={LABEL} htmlFor="issue">Issue date (automatic)</label>
