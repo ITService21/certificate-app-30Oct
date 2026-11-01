@@ -157,7 +157,7 @@ const CourseModal: React.FC<{ initial: Course; isNew: boolean; onClose: () => vo
     try {
       const { code, ...body } = f;
       if (isNew) await api.post('/admin/courses', { code: code.trim().toUpperCase(), ...body });
-      else await api.put(`/admin/courses/${encodeURIComponent(code)}`, body);
+      else await api.put(`/admin/courses/${encodeURIComponent(initial.code)}`, { ...body, code: code.trim().toUpperCase() });
       onSaved();
     } catch (e2: any) {
       setErr(e2.message || 'Could not save the course');
@@ -177,7 +177,7 @@ const CourseModal: React.FC<{ initial: Course; isNew: boolean; onClose: () => vo
           <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
             <div>
               <label className={LABEL} htmlFor="c-code">Code *</label>
-              <input id="c-code" className={`${INPUT} uppercase font-mono`} value={f.code} disabled={!isNew} maxLength={20} required
+              <input id="c-code" className={`${INPUT} uppercase font-mono`} value={f.code} maxLength={20} required
                 onChange={(e) => set('code', e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder="e.g. PSSR" />
             </div>
             <div>

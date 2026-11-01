@@ -459,10 +459,20 @@ admin.post('/courses', requireSuperAdmin, ah(async (req: AuthedRequest, res) => 
 
 admin.put('/courses/:code', requireSuperAdmin, ah(async (req: AuthedRequest, res) => {
   const cols = courseColumns(req.body || {}, true);
+  if (req.body?.code !== undefined) {
+    const code = String(req.body.code).trim().toUpperCase();
+    if (!/^[A-Z0-9_-]{1,20}$/.test(code)) throw new HttpError(400, 'Code must be 1-20 letters, digits, - or _');
+    cols.code = code;
+  }
   if (!Object.keys(cols).length) throw new HttpError(400, 'Nothing to update');
-  const [r] = await pool.query<any>(`UPDATE course_templates SET ${Object.keys(cols).map((k) => `${k} = ?`).join(', ')} WHERE code = ?`, [...Object.values(cols), req.params.code]);
-  if (!r.affectedRows) throw new HttpError(404, 'Course not found');
-  const [rows] = await pool.query<any[]>('SELECT * FROM course_templates WHERE code = ?', [req.params.code]);
+  try {
+    const [r] = await pool.query<any>(`UPDATE course_templates SET ${Object.keys(cols).map((k) => `${k} = ?`).join(', ')} WHERE code = ?`, [...Object.values(cols), req.params.code]);
+    if (!r.affectedRows) throw new HttpError(404, 'Course not found');
+  } catch (e: any) {
+    if (e.code === 'ER_DUP_ENTRY') throw new HttpError(409, 'A course with this code already exists');
+    throw e;
+  }
+  const [rows] = await pool.query<any[]>('SELECT * FROM course_templates WHERE code = ?', [cols.code ?? req.params.code]);
   res.json(toCourse(rows[0]));
 }));
 
